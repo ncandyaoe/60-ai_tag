@@ -1,0 +1,479 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>标签预览</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/pdfmake.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/vfs_fonts.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            background: #4a4a4a;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+            font-family: sans-serif;
+        }
+
+        .toolbar {
+            width: 100%;
+            background: #2c2c2c;
+            color: #eee;
+            padding: 8px 16px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 13px;
+        }
+
+        .toolbar span {
+            flex: 1;
+        }
+
+        .btn-download {
+            padding: 6px 14px;
+            background: #ff4b4b;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 13px;
+        }
+
+        .btn-download:hover {
+            background: #e03333;
+        }
+
+        .btn-download:disabled {
+            background: #888;
+            cursor: not-allowed;
+        }
+
+        .compliance-banner {
+            width: 100%;
+            padding: 6px 16px;
+            font-size: 12px;
+            font-weight: bold;
+            text-align: center;
+        }
+
+        .compliance-pass {
+            background: #1b5e20;
+            color: #c8e6c9;
+        }
+
+        .compliance-warn {
+            background: #e65100;
+            color: #ffe0b2;
+        }
+
+        .compliance-fail {
+            background: #b71c1c;
+            color: #ffcdd2;
+        }
+
+        #canvas-container {
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            padding: 16px;
+            width: 100%;
+        }
+
+        #pdfCanvas {
+            background: white;
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
+            max-width: 100%;
+        }
+
+        #status {
+            color: #ccc;
+            font-size: 13px;
+            padding: 30px 20px;
+            text-align: center;
+            line-height: 1.8;
+        }
+
+        .spinner {
+            display: inline-block;
+            width: 18px;
+            height: 18px;
+            border: 2px solid #888;
+            border-top-color: #fff;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            vertical-align: middle;
+            margin-right: 8px;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="toolbar">
+        <span>预览 (76mm × 76mm)</span>
+        <button class="btn-download" onclick="downloadPDF()" id="dlBtn" disabled>⬇ 下载 PDF（送厂印刷）</button>
+    </div>
+    <!-- [改造项3] 合规校验横幅 -->
+    <div id="complianceBanner" class="compliance-banner" style="display:none;"></div>
+    <div id="canvas-container">
+        <div id="status">
+            <span class="spinner"></span>正在加载字体，请稍候...
+        </div>
+        <canvas id="pdfCanvas" style="display:none;"></canvas>
+    </div>
+
+    <script>
+        // PDF.js workerSrc
+        pdfjsLib.GlobalWorkerOptions.workerSrc =
+            'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+        // --------------------------------------------------
+        // 由 Python/Jinja2 注入的数据
+        // --------------------------------------------------
+        var labelData = {{ label_data_json | safe }};
+        var FONT_CONFIG = {{ font_config_json | safe }};
+        var COUNTRY_CFG = {{ country_config_json | safe }};
+        var COMPLIANCE = {{ compliance_json | safe }};
+
+        // --------------------------------------------------
+        // [改造项3] 显示合规校验横幅
+        // --------------------------------------------------
+        (function showComplianceBanner() {
+            var banner = document.getElementById('complianceBanner');
+            var dlBtn = document.getElementById('dlBtn');
+            banner.textContent = COMPLIANCE.message;
+            banner.style.display = '';
+            if (COMPLIANCE.level === 'fail') {
+                banner.className = 'compliance-banner compliance-fail';
+                dlBtn.disabled = true;
+                dlBtn.title = '字高不合规，禁止下载';
+            } else if (COMPLIANCE.level === 'warn') {
+                banner.className = 'compliance-banner compliance-warn';
+            } else {
+                banner.className = 'compliance-banner compliance-pass';
+            }
+        })();
+
+        // --------------------------------------------------
+        // 物理尺寸：76mm × 76mm = 215.42pt
+        // --------------------------------------------------
+        var LABEL_SIZE = { width: 215.4, height: 215.4 };
+        var LABEL_MARGINS = [8, 8, 8, 8];
+
+        // --------------------------------------------------
+        // ArrayBuffer → base64
+        // --------------------------------------------------
+        function arrayBufferToBase64(buffer) {
+            var bytes = new Uint8Array(buffer);
+            var binary = '';
+            var chunkSize = 8192;
+            for (var i = 0; i < bytes.length; i += chunkSize) {
+                binary += String.fromCharCode.apply(null, bytes.subarray(i, i + chunkSize));
+            }
+            return btoa(binary);
+        }
+
+        // --------------------------------------------------
+        // 从 Streamlit static 目录加载字体到 PDFMake VFS
+        // --------------------------------------------------
+        function loadFontToVfs(filename) {
+            return fetch('/app/static/' + filename)
+                .then(function (r) {
+                    if (!r.ok) throw new Error(filename + ' HTTP ' + r.status);
+                    return r.arrayBuffer();
+                })
+                .then(function (buf) {
+                    pdfMake.vfs[filename] = arrayBufferToBase64(buf);
+                });
+        }
+
+        // --------------------------------------------------
+        // [改造项4] 营养成分表 body（使用国家配置驱动列头和标题）
+        // --------------------------------------------------
+        function buildNutritionTableBody(nutrition) {
+            var header = COUNTRY_CFG.nutrition_header || ['', 'Per 100g', 'Per Serving'];
+            var title = COUNTRY_CFG.nutrition_title || 'Nutrition Facts';
+
+            var body = [
+                [
+                    {
+                        text: title, colSpan: 3, alignment: 'center', bold: true,
+                        fontSize: 8, border: [false, false, false, true], margin: [0, 1]
+                    },
+                    {}, {}
+                ],
+                [
+                    {
+                        text: 'Serving size: ' + (nutrition.serving_size || '') +
+                            (nutrition.servings_per_package ? ' | ' + nutrition.servings_per_package + ' servings' : ''),
+                        colSpan: 3, fontSize: 7, border: [false, false, false, true], margin: [0, 1]
+                    },
+                    {}, {}
+                ],
+                [
+                    { text: header[0], fontSize: 7, border: [false, false, false, true] },
+                    { text: header[1], alignment: 'right', bold: true, fontSize: 7, border: [false, false, false, true] },
+                    { text: header[2], alignment: 'right', bold: true, fontSize: 7, border: [false, false, false, true] }
+                ]
+            ];
+            if (nutrition && nutrition.table_data) {
+                nutrition.table_data.forEach(function (item) {
+                    body.push([
+                        { text: item.name || '', bold: true, fontSize: 7, border: [false, false, false, true], margin: [0, 1] },
+                        { text: String(item.per_100g || ''), alignment: 'right', fontSize: 7, border: [false, false, false, true], margin: [0, 1] },
+                        { text: String(item.per_serving || ''), alignment: 'right', fontSize: 7, border: [false, false, false, true], margin: [0, 1] }
+                    ]);
+                });
+            }
+            return body;
+        }
+
+        // --------------------------------------------------
+        // 动态字号计算
+        // --------------------------------------------------
+        function calcFontSizes(data) {
+            var len = [
+                data.product_name_en || '',
+                data.ingredients || '',
+                data.allergens || '',
+                data.manufacturer || '',
+                data.importer_info || ''
+            ].join('').length;
+            if (len < 200) return { base: 8, ingredients: 7 };
+            if (len < 400) return { base: 7, ingredients: 7 };
+            if (len < 600) return { base: 7, ingredients: 6.5 };
+            return { base: 6.5, ingredients: 6 };
+        }
+
+        // --------------------------------------------------
+        // [改造项4] 放大镜 SVG 图标（加拿大要求）
+        // --------------------------------------------------
+        function buildMagnifierBlock() {
+            if (!COUNTRY_CFG.show_magnifier) return null;
+            return {
+                svg: '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="black" stroke-width="2"><circle cx="10" cy="10" r="7"/><line x1="15" y1="15" x2="21" y2="21"/></svg>',
+                width: 14,
+                height: 14,
+                alignment: 'right',
+                margin: [0, 0, 2, 0]
+            };
+        }
+
+        // --------------------------------------------------
+        // [改造项4] 底部图标区（环保/认证标识）
+        // --------------------------------------------------
+        function buildIconsBlock() {
+            var icons = COUNTRY_CFG.icons || [];
+            if (icons.length === 0) return null;
+
+            var items = [];
+            icons.forEach(function (icon) {
+                if (icon === 'halal') {
+                    items.push({
+                        text: '☪ HALAL',
+                        bold: true, fontSize: 6,
+                        alignment: 'center',
+                        margin: [2, 1],
+                        background: '#f0f0f0'
+                    });
+                } else if (icon === 'eac') {
+                    items.push({
+                        text: 'EAC',
+                        bold: true, fontSize: 6,
+                        alignment: 'center',
+                        margin: [2, 1]
+                    });
+                } else {
+                    items.push({
+                        text: icon.toUpperCase(),
+                        fontSize: 6,
+                        alignment: 'center',
+                        margin: [2, 1]
+                    });
+                }
+            });
+            return { columns: items, margin: [0, 2, 0, 0] };
+        }
+
+        // --------------------------------------------------
+        // PDFMake 文档定义
+        // --------------------------------------------------
+        function buildDocDefinition(data, fontName) {
+            var nutrition = data.nutrition || {};
+            var tableBody = buildNutritionTableBody(nutrition);
+            var fontSizes = calcFontSizes(data);
+            var rightStack = [];
+
+            // HALAL 标记 — 来自数据或国家图标配置
+            var showHalal = data.is_halal || (COUNTRY_CFG.icons && COUNTRY_CFG.icons.indexOf('halal') >= 0);
+            if (showHalal) {
+                rightStack.push({
+                    text: '☪ HALAL', bold: true, fontSize: 6,
+                    alignment: 'center', margin: [0, 2]
+                });
+            }
+            rightStack.push({
+                text: data.net_weight || '', bold: true, fontSize: 10,
+                alignment: 'right', margin: [0, 2, 0, 0]
+            });
+
+            var content = [
+                { text: data.product_name_en || 'PRODUCT NAME', bold: true, fontSize: 11, margin: [0, 0, 0, 2] },
+                { text: data.product_name_cn || '', bold: true, fontSize: 8, color: '#333', margin: [0, 0, 0, 4] },
+            ];
+
+            // [改造项4] 放大镜图标 + 营养表并排
+            var magnifier = buildMagnifierBlock();
+            if (magnifier) {
+                content.push({
+                    columns: [
+                        {
+                            width: '*',
+                            table: { widths: ['*', 'auto', 'auto'], body: tableBody },
+                            layout: {
+                                hLineWidth: function (i, node) { return (i === 0 || i === node.table.body.length) ? 1 : 0.5; },
+                                vLineWidth: function () { return 0; },
+                                paddingLeft: function () { return 0; },
+                                paddingRight: function () { return 0; }
+                            }
+                        },
+                        { width: 'auto', stack: [magnifier], alignment: 'right' }
+                    ],
+                    margin: [0, 0, 0, 4]
+                });
+            } else {
+                content.push({
+                    table: { widths: ['*', 'auto', 'auto'], body: tableBody },
+                    layout: {
+                        hLineWidth: function (i, node) { return (i === 0 || i === node.table.body.length) ? 1 : 0.5; },
+                        vLineWidth: function () { return 0; },
+                        paddingLeft: function () { return 0; },
+                        paddingRight: function () { return 0; }
+                    },
+                    margin: [0, 0, 0, 4]
+                });
+            }
+
+            content.push(
+                { text: [{ text: 'Ingredients: ', bold: true }, { text: data.ingredients || '' }], fontSize: fontSizes.ingredients, margin: [0, 0, 0, 2] },
+                { text: [{ text: 'Contains: ', bold: true }, { text: data.allergens || '' }], fontSize: fontSizes.base, margin: [0, 0, 0, 2] },
+                { text: [{ text: 'Product of: ', bold: true }, { text: data.origin || 'China' }], fontSize: fontSizes.base, margin: [0, 0, 0, 4] },
+                {
+                    columns: [
+                        {
+                            width: '*', fontSize: fontSizes.base,
+                            stack: [
+                                { text: [{ text: 'Mfr: ', bold: true }, { text: data.manufacturer || '' }] },
+                                { text: [{ text: 'Imported By: ', bold: true }, { text: data.importer_info || '' }] }
+                            ]
+                        },
+                        { width: 'auto', stack: rightStack, alignment: 'right' }
+                    ]
+                }
+            );
+
+            // [改造项4] 底部图标区
+            var iconsBlock = buildIconsBlock();
+            if (iconsBlock) content.push(iconsBlock);
+
+            return {
+                pageSize: LABEL_SIZE,
+                pageMargins: LABEL_MARGINS,
+                defaultStyle: {
+                    font: fontName,
+                    fontSize: fontSizes.base,
+                    lineHeight: 1.15
+                },
+                content: content
+            };
+        }
+
+        // --------------------------------------------------
+        // 渲染 PDF 到 Canvas（用 PDF.js）
+        // --------------------------------------------------
+        var _docDefinition = null;
+
+        function renderToPdfCanvas(docDef) {
+            _docDefinition = docDef;
+            setStatus('正在生成排版...');
+            pdfMake.createPdf(docDef).getBuffer(function (buffer) {
+                var uint8 = new Uint8Array(buffer);
+                pdfjsLib.getDocument({ data: uint8 }).promise.then(function (pdfDoc) {
+                    pdfDoc.getPage(1).then(function (page) {
+                        var scale = 3.0;
+                        var viewport = page.getViewport({ scale: scale });
+                        var canvas = document.getElementById('pdfCanvas');
+                        var ctx = canvas.getContext('2d');
+                        canvas.width = viewport.width;
+                        canvas.height = viewport.height;
+                        page.render({ canvasContext: ctx, viewport: viewport }).promise.then(function () {
+                            document.getElementById('status').style.display = 'none';
+                            canvas.style.display = 'block';
+                            // 只有合规时才解锁下载
+                            if (COMPLIANCE.level !== 'fail') {
+                                document.getElementById('dlBtn').disabled = false;
+                            }
+                        });
+                    });
+                }).catch(function (err) {
+                    setStatus('❌ 渲染失败: ' + err.message);
+                });
+            });
+        }
+
+        function setStatus(msg) {
+            var el = document.getElementById('status');
+            el.style.display = '';
+            el.innerHTML = '<span class="spinner"></span>' + msg;
+        }
+
+        // --------------------------------------------------
+        // 启动：加载字体 → 注册 → 渲染
+        // 注意：必须禁用 Web Worker，否则在 Streamlit iframe 沙盒内
+        // Worker 会被拦截，导致 getBuffer 回调永远不触发
+        // --------------------------------------------------
+        pdfMake.useWorker = false;
+
+        var fontPromises = FONT_CONFIG.files.map(function (f) {
+            return loadFontToVfs(f);
+        });
+
+        Promise.all(fontPromises).then(function () {
+            pdfMake.fonts = pdfMake.fonts || {};
+            pdfMake.fonts[FONT_CONFIG.family] = FONT_CONFIG.variants;
+            var docDef = buildDocDefinition(labelData, FONT_CONFIG.family);
+            renderToPdfCanvas(docDef);
+        }).catch(function (err) {
+            console.warn('字体加载失败，使用 Roboto 降级:', err.message);
+            setStatus('⚠️ 字体加载失败，使用默认字体...');
+            var docDef = buildDocDefinition(labelData, 'Roboto');
+            renderToPdfCanvas(docDef);
+        });
+
+        // --------------------------------------------------
+        // 下载按钮
+        // --------------------------------------------------
+        function downloadPDF() {
+            if (!_docDefinition) return;
+            var filename = (labelData.product_name_en || 'label').replace(/\s+/g, '_') + '_Compliance.pdf';
+            pdfMake.createPdf(_docDefinition).download(filename);
+        }
+    </script>
+</body>
+
+</html>

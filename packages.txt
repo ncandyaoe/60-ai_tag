@@ -1,0 +1,2 @@
+# 系统级依赖（Streamlit Cloud 使用 apt-get 安装）
+# PyMuPDF 不需要额外系统包

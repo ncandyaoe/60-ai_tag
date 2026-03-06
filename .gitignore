@@ -1,0 +1,43 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# Env
+.env
+.env.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Node (not needed for deployment)
+node_modules/
+package-lock.json
+package.json
+
+# Large files not needed for deployment
+*.xlsx
+*.pptx
+*.rar
+fontsource-noto-sans-sc-*.tgz
+阿里巴巴普惠体.ttf/
+阿里巴巴普惠体.ttf.rar
+
+# Label preview images (generated)
+label*.png
+
+# Gemini/Claude config
+.gemini/
+.claude/
