@@ -1,10 +1,7 @@
-import re
 import json
 import os
 
-import requests
 import streamlit as st
-from dotenv import load_dotenv
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 
 from country_config import (
@@ -15,9 +12,6 @@ from country_config import (
 )
 from label_renderer import generate_label_preview_html, generate_label_pdf
 
-# 加载 .env 文件
-load_dotenv()
-
 # ==========================================
 # Jinja2 模板环境：加载 templates/ 目录下的模板
 # ==========================================
@@ -27,123 +21,7 @@ _JINJA_ENV = Environment(
     autoescape=select_autoescape([])  # 关闭 HTML 自动转义，JS 数据由 json.dumps 保证安全
 )
 
-# ==========================================
-# 1. 基础配置与 AI 初始化
-# ==========================================
-# 从环境变量读取 MiniMax API Key
-API_KEY = os.environ.get("MINIMAX_API_KEY", "")
-# MiniMax API 基础地址
-BASE_URL = "https://api.minimax.chat/v1"
-
-# MiniMax M2.5 模型名称
-MODEL_NAME = "abab6.5s-chat"
-
 st.set_page_config(page_title="智能出口标签生成器 (含营养表)", layout="wide")
-
-# ==========================================
-# 2. 核心逻辑：AI 提取与结构化数据 (新增营养表字段)
-# ==========================================
-def extract_label_data(raw_text):
-    prompt = f"""
-    You are a professional food export compliance expert. Extract product information from the following text and output in strict JSON format.
-
-    IMPORTANT rules:
-    - product_name_en: English product name
-    - product_name_cn: Chinese product name (keep Chinese, e.g., "海天招牌拌饭酱")
-    - allergens: English only (e.g., "Soybeans, Wheat")
-    - origin: English only (e.g., "China")
-    - manufacturer: English only
-    - importer_info: English only
-    - nutrition table: English only (e.g., "Energy", "Protein", "Fat", etc.)
-
-    Please output JSON only, no other text.
-    注意：营养成分表的 table_data 最多只包含 6 行，不要超过。
-    If information is not mentioned, fill with empty string "".
-
-    需要提取的字段包括：
-    - product_name_en (英文品名)
-    - product_name_cn (中文品名)
-    - ingredients (英文配料表)
-    - allergens (过敏原提示)
-    - net_weight (净重，如 300 g)
-    - drained_weight (沥干重，如 ≥165 g)
-    - origin (原产国)
-    - manufacturer (生产商名称与地址)
-    - importer_info (进口商名称与地址)
-    - is_halal (是否有清真认证，true 或 false)
-    - nutrition (营养成分表对象，包含以下结构：
-        - servings_per_package (每包份数，数字或字符串)
-        - serving_size (每份大小，如 15g)
-        - table_data (一个数组，每个元素包含: name(项目名), per_100g(每100克含量), per_serving(每份含量))
-      )
-
-    原始文本：
-    {raw_text}
-    """
-
-    headers = {
-        "Authorization": f"Bearer {API_KEY}",
-        "Content-Type": "application/json"
-    }
-
-    data = {
-        "model": MODEL_NAME,
-        "messages": [
-            {"role": "user", "content": prompt}
-        ],
-        "temperature": 0.3,
-        "max_tokens": 4096
-    }
-
-    response = requests.post(
-        f"{BASE_URL}/text/chatcompletion_v2",
-        headers=headers,
-        json=data
-    )
-
-    # 检查响应状态
-    if response.status_code != 200:
-        raise Exception(f"API 请求失败: {response.status_code} - {response.text}")
-
-    result = response.json()
-
-    # 调试：打印完整响应
-    # print(result)
-
-    # MiniMax 返回的内容在 choices[0].message.content 中
-    choices = result.get("choices")
-    if not choices or not choices[0].get("message"):
-        raise Exception(f"API 响应格式异常: {result}")
-
-    content = choices[0].get("message", {}).get("content", "")
-    if not content:
-        raise Exception(f"API 返回内容为空: {result}")
-
-    # 尝试提取 JSON 部分（处理 AI 返回可能包含的额外文本）
-
-    # 方法1：直接解析
-    try:
-        return json.loads(content)
-    except json.JSONDecodeError:
-        pass
-
-    # 方法2：尝试找到 JSON 代码块
-    json_match = re.search(r'```json\s*(\{.*?\})\s*```', content, re.DOTALL)
-    if json_match:
-        try:
-            return json.loads(json_match.group(1))
-        except json.JSONDecodeError:
-            pass
-
-    # 方法3：找到所有 { } 对，尝试找到完整的 JSON
-    json_match = re.search(r'\{[\s\S]*\}', content)
-    if json_match:
-        try:
-            return json.loads(json_match.group())
-        except json.JSONDecodeError as e:
-            raise Exception(f"JSON 解析失败: {e}\n内容: {content[:500]}")
-
-    raise Exception(f"无法解析 JSON 格式，内容: {content[:300]}")
 
 # ==========================================
 # 3. 核心逻辑：Jinja2 模板渲染
