@@ -437,15 +437,20 @@ def _estimate_content_height(data: dict, sizes: dict, content_w: float,
         block_heights.append(bh)
         cursor += bh + unified_gap
 
-    # Storage
+    # Storage（可能进入营养表避让区域，使用 L 形估算）
     storage = data.get("storage", "")
     if storage:
-        n = _count_text_lines(storage, _FONT_NAME, sizes["body"], eff_w)
+        n, cursor = _count_text_lines_lshape(
+            storage, _FONT_NAME, sizes["body"],
+            full_width=eff_w, narrow_width=eff_nut_narrow,
+            cursor=cursor, nut_boundary=nut_boundary,
+            leading=body_leading
+        )
         bh = n * body_leading
         block_heights.append(bh)
-        cursor += bh + unified_gap
+        cursor += unified_gap
 
-    # Date
+    # Date（可能进入营养表避让区域，使用 L 形估算）
     prod_date = data.get("production_date", "")
     best_before = data.get("best_before", "")
     if prod_date or best_before:
@@ -453,10 +458,15 @@ def _estimate_content_height(data: dict, sizes: dict, content_w: float,
         if prod_date: date_parts.append(f"Production date: {prod_date}")
         if best_before: date_parts.append(f"Best Before: {best_before}")
         date_text = " / ".join(date_parts)
-        n = _count_text_lines(date_text, _FONT_NAME_BOLD, sizes["body"], eff_w)
+        n, cursor = _count_text_lines_lshape(
+            date_text, _FONT_NAME_BOLD, sizes["body"],
+            full_width=eff_w, narrow_width=eff_nut_narrow,
+            cursor=cursor, nut_boundary=nut_boundary,
+            leading=body_leading
+        )
         bh = n * body_leading
         block_heights.append(bh)
-        cursor += bh + unified_gap
+        cursor += unified_gap
 
     # Product of
     bh = body_leading
@@ -1070,6 +1080,19 @@ def generate_label_pdf(data: dict, country_cfg: Optional[dict] = None) -> bytes:
 
     # ---- B 区域：全宽文字信息 ----
 
+    # 提前计算营养表边界，供 B+C 区域所有文字块避让
+    right_col_ratio = 0.62
+    col_gap = 4
+    left_col_w = content_w * (1 - right_col_ratio)
+    right_col_w = content_w * right_col_ratio
+    right_col_x = left + left_col_w + col_gap
+    actual_right_w = right_col_w - col_gap
+    body_leading = sizes["body"] * 1.15
+
+    nut_total_h = _calc_nutrition_height(data, sizes)
+    nut_top_y = bottom + nut_total_h  # 营养表顶部 y 坐标
+    nut_reserve = _effective_width(right_col_w, h_scale)  # 营养表避让宽度
+
     # 在 L 形正文区域开始前设置横向压缩
     if h_scale < 1.0:
         tz_pct = int(h_scale * 100)
@@ -1082,7 +1105,8 @@ def generate_label_pdf(data: dict, country_cfg: Optional[dict] = None) -> bytes:
             c, ingredients, left, y,
             content_w, _FONT_NAME, sizes["ingr"],
             bold_prefix="Ingredients: ", h_scale=h_scale,
-            logo_bottom_y=logo_bottom_y, logo_reserve=logo_reserve
+            logo_bottom_y=logo_bottom_y, logo_reserve=logo_reserve,
+            nut_top_y=nut_top_y, nut_reserve=nut_reserve
         )
         y -= unified_gap
 
@@ -1093,7 +1117,8 @@ def generate_label_pdf(data: dict, country_cfg: Optional[dict] = None) -> bytes:
             c, allergens, left, y,
             content_w, _FONT_NAME, sizes["body"],
             bold_prefix="Contains: ", h_scale=h_scale,
-            logo_bottom_y=logo_bottom_y, logo_reserve=logo_reserve
+            logo_bottom_y=logo_bottom_y, logo_reserve=logo_reserve,
+            nut_top_y=nut_top_y, nut_reserve=nut_reserve
         )
         y -= unified_gap
 
@@ -1103,53 +1128,37 @@ def generate_label_pdf(data: dict, country_cfg: Optional[dict] = None) -> bytes:
         y = _draw_wrapped_text(
             c, storage, left, y,
             content_w, _FONT_NAME, sizes["body"],
-            h_scale=h_scale
+            h_scale=h_scale,
+            nut_top_y=nut_top_y, nut_reserve=nut_reserve
         )
         y -= unified_gap
 
-    # Production date / Best Before（两个标签都加粗，值用普通字体）
+    # Production date / Best Before
     prod_date = data.get("production_date", "")
     best_before = data.get("best_before", "")
     if prod_date or best_before:
         if prod_date and best_before:
-            # 两个都有：分段绘制，两个标签都加粗
-            body_fs = sizes["body"]
-            date_leading = body_fs * 1.15
-            eff_w_date = _effective_width(content_w, h_scale)
-            # 各段文本和字体
-            segments = [
-                ("Production date: ", _FONT_NAME_BOLD),
-                (f"{prod_date} / ", _FONT_NAME),
-                ("Best Before: ", _FONT_NAME_BOLD),
-                (best_before, _FONT_NAME),
-            ]
-            cx = left
-            for seg_text, seg_font in segments:
-                for word in seg_text.split(' '):
-                    if not word and not seg_text.strip():
-                        continue
-                    token = word + (' ' if not seg_text.endswith(word) else '')
-                    if not token.strip() and cx == left:
-                        continue
-                    tw = pdfmetrics.stringWidth(token, seg_font, body_fs) * h_scale
-                    if cx + tw > left + eff_w_date and cx > left:
-                        y -= date_leading
-                        cx = left
-                    c.setFont(seg_font, body_fs)
-                    c.drawString(cx, y, token)
-                    cx += tw
-            y -= date_leading  # 最后一行的 leading
+            # 合并为一个文本块，统一走 _draw_wrapped_text 以正确避让营养表
+            date_text = f"{prod_date} / Best Before: {best_before}"
+            y = _draw_wrapped_text(
+                c, date_text, left, y,
+                content_w, _FONT_NAME, sizes["body"],
+                bold_prefix="Production date: ", h_scale=h_scale,
+                nut_top_y=nut_top_y, nut_reserve=nut_reserve
+            )
         elif prod_date:
             y = _draw_wrapped_text(
                 c, prod_date, left, y,
                 content_w, _FONT_NAME, sizes["body"],
-                bold_prefix="Production date: ", h_scale=h_scale
+                bold_prefix="Production date: ", h_scale=h_scale,
+                nut_top_y=nut_top_y, nut_reserve=nut_reserve
             )
         else:
             y = _draw_wrapped_text(
                 c, best_before, left, y,
                 content_w, _FONT_NAME, sizes["body"],
-                bold_prefix="Best Before: ", h_scale=h_scale
+                bold_prefix="Best Before: ", h_scale=h_scale,
+                nut_top_y=nut_top_y, nut_reserve=nut_reserve
             )
         y -= unified_gap
 
@@ -1158,30 +1167,15 @@ def generate_label_pdf(data: dict, country_cfg: Optional[dict] = None) -> bytes:
     # ============================================================
     net_weight = data.get("net_weight", "")
 
-    # 营养表区域参数（右下角固定矩形）
-    right_col_ratio = 0.62
-    col_gap = 4
-    left_col_w = content_w * (1 - right_col_ratio)
-    right_col_w = content_w * right_col_ratio
-    right_col_x = left + left_col_w + col_gap
-    actual_right_w = right_col_w - col_gap
-    body_leading = sizes["body"] * 1.15
-
     # Net Volume 预留高度（baseline 在 bottom，文字向上延伸 cap height）
     net_reserve = _FIXED_NET * _CAP_H_RATIO if net_weight else 0
 
-    # 营养表总高度 & 固定区域位置
-    nut_total_h = _calc_nutrition_height(data, sizes)
-    nut_top_y = bottom + nut_total_h  # 营养表顶部 y 坐标（底部贴 bottom）
-    nut_reserve = _effective_width(right_col_w, h_scale)  # 避让宽度
+    # 营养表边界（已在 B 区域前计算 nut_top_y, nut_reserve, right_col_x, actual_right_w 等）
 
     # ------------------------------------------------------------------
     # C 左栏间距计算
     # ------------------------------------------------------------------
-    # 先估算 C 左栏各元素内容高度（不含间距）
-    # 使用 L 形逐行估算，匹配 _draw_wrapped_text 的动态宽度
     eff_w = _effective_width(content_w, h_scale)
-    # 窄宽度与 _draw_wrapped_text 中 _line_width() 完全一致: content_w - nut_reserve
     eff_nut_narrow = eff_w - nut_reserve
 
     # 从顶部坐标换算 cursor（估算坐标系：从顶部往下，0=标签顶部内边距）
