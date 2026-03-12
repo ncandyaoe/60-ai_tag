@@ -122,6 +122,7 @@ def _draw_bold_right_string(c, x: float, y: float, text: str, font_size: float):
 # 70×69mm 标签固定尺寸（设计师标注的是视觉字高 cap height，需要换算）
 # 换算公式: font_pt = visual_mm / (CAP_H_RATIO * 0.3528)
 _CAP_H_RATIO = 0.735                 # AliPuHuiTi 字体 cap height 比例（实测反推）
+_X_HEIGHT_RATIO = 0.54                # AliPuHuiTi 字体 x-height 比例（sxHeight=540, UPM=1000）
 _FIXED_TITLE = 8.0                               # 英文标题 8.0pt
 _FIXED_CN    = 9.8                               # 中文标题 9.8pt
 _FIXED_NET   = 21                                # Net Volume 固定 21pt
@@ -374,15 +375,17 @@ def _estimate_content_height(data: dict, sizes: dict, content_w: float,
     精确匹配 _draw_wrapped_text 的渲染逻辑。
     纵向估算不考虑横向压缩（h_scale），始终按原始宽度计算。
     """
-    # A 区域高度
+    # A 区域高度（最后一个元素用 1.0 leading，减少 A→B 过渡空白）
     h = sizes["title"] * 0.8
     a_gap = 1
-    h += sizes["title"] * 1.15 + a_gap
     if data.get("product_name_cn"):
-        h += sizes["cn"] * 1.15 + a_gap
+        h += sizes["title"] * 1.15 + a_gap   # en name (非最后)
+        h += sizes["cn"] * 1.0 + a_gap       # cn name (最后，leading 缩减)
+    else:
+        h += sizes["title"] * 1.0 + a_gap    # en name (最后，leading 缩减)
 
-    # Net Volume 预留高度
-    net_reserve = _FIXED_NET * _CAP_H_RATIO if data.get("net_weight") else 0
+    # Net Volume 预留高度（仅预留实际字符高度 + 最小间距）
+    net_reserve = (_FIXED_NET * _CAP_H_RATIO) if data.get("net_weight") else 0
 
     # 营养表高度和边界
     right_col_ratio = 0.62
@@ -515,11 +518,13 @@ def _calc_font_sizes(data: dict, country_cfg: Optional[dict] = None) -> Tuple[di
     left_col_w = content_w * 0.38
     available_h = LABEL_H - 2 * MARGIN
 
-    # 法规最小字号（纵向字高），+5% 补偿 x-height 与 em size 差异
+    # 法规最小字号（基于 x-height 实际印刷高度）
+    # min_font_height_mm 是小写字母（a/e/o）的实际物理高度
+    # 换算: font_pt = target_mm / (PT_TO_MM * x_height_ratio)
     min_font_pt = 4.0
     if country_cfg:
         min_mm = country_cfg.get("min_font_height_mm", 1.2)
-        min_font_pt = min_mm / 0.3528 * 1.05  # mm → pt, +5% x-height 补偿
+        min_font_pt = min_mm / (0.3528 * _X_HEIGHT_RATIO)
 
     # ======== 第一轮：纯纵向二分搜索（h_scale=1.0）========
     lo, hi = 0.0, 1.0
@@ -602,33 +607,36 @@ def _calc_font_sizes(data: dict, country_cfg: Optional[dict] = None) -> Tuple[di
             h_scale = best_hs2
 
     # ======== 第三轮（兜底）：强制法规最小字号 ========
-    # 如果经过前两轮，字号仍低于法规最小要求 → 强制使用法规最小字号 + 极限压缩
+    # 如果经过前两轮，字号仍低于法规最小要求
+    # 直接 clamp body/ingr 到 min_font_pt（不通过 scale 联动），避免短内容误压缩
     if sizes["body"] < min_font_pt or sizes["ingr"] < min_font_pt:
-        # 找到刚好满足法规最小字号的 scale
-        min_legal_scale = 0.0
-        for k in ["body", "ingr"]:
-            needed = (min_font_pt - _SIZE_MIN[k]) / max(_SIZE_MAX[k] - _SIZE_MIN[k], 0.001)
-            min_legal_scale = max(min_legal_scale, needed)
-        min_legal_scale = min(min_legal_scale, 1.0)
+        # 直接修改 sizes，不重新走 _sizes_at_scale（保持 title/cn/net 等不变）
+        sizes = dict(sizes)  # 拷贝以避免修改缓存
+        sizes["body"] = max(sizes["body"], min_font_pt)
+        sizes["ingr"] = max(sizes["ingr"], min_font_pt)
 
-        sizes = _sizes_at_scale(min_legal_scale)
+        # 先试 h_scale=1.0 是否能放下
+        h_test, _ = _estimate_content_height(data, sizes, content_w, left_col_w, available_h=available_h)
+        if h_test <= available_h:
+            # 短内容：不需要任何压缩
+            h_scale = 1.0
+        else:
+            # 需要压缩：二分搜索 h_scale（下限 0.3）
+            hs_lo, hs_hi = 0.3, 1.0
+            best_hs = 0.3
 
-        # 用极限 h_scale 二分搜索（下限 0.3，即压缩到 30%）
-        hs_lo, hs_hi = 0.3, 1.0
-        best_hs = 0.3  # 最差情况就用 0.3
+            for _ in range(15):
+                hs_mid = (hs_lo + hs_hi) / 2
+                eff_w = _effective_width(content_w, hs_mid)
+                eff_left = _effective_width(left_col_w, hs_mid)
+                h_comp, _ = _estimate_content_height(data, sizes, eff_w, eff_left, available_h=available_h)
+                if h_comp <= available_h:
+                    best_hs = hs_mid
+                    hs_lo = hs_mid
+                else:
+                    hs_hi = hs_mid
 
-        for _ in range(15):
-            hs_mid = (hs_lo + hs_hi) / 2
-            eff_w = _effective_width(content_w, hs_mid)
-            eff_left = _effective_width(left_col_w, hs_mid)
-            h_comp, _ = _estimate_content_height(data, sizes, eff_w, eff_left, available_h=available_h)
-            if h_comp <= available_h:
-                best_hs = hs_mid
-                hs_lo = hs_mid
-            else:
-                hs_hi = hs_mid
-
-        h_scale = best_hs
+            h_scale = best_hs
 
     # --------------------------------------------------
     # 统一间距计算
@@ -641,13 +649,16 @@ def _calc_font_sizes(data: dict, country_cfg: Optional[dict] = None) -> Tuple[di
     else:
         est_h, n_blocks = _estimate_content_height(data, sizes, content_w, left_col_w, available_h=available_h)
 
-    # A 区域固定高度
-    a_h = sizes["title"] * 0.8 + sizes["title"] * 1.15 + 1
+    # A 区域固定高度（与 _estimate_content_height 保持一致）
+    a_h = sizes["title"] * 0.8
     if data.get("product_name_cn"):
-        a_h += sizes["cn"] * 1.15 + 1
+        a_h += sizes["title"] * 1.15 + 1  # en name
+        a_h += sizes["cn"] * 1.0 + 1      # cn name (最后，leading 缩减)
+    else:
+        a_h += sizes["title"] * 1.0 + 1   # en name (最后)
 
     # Net Volume 预留
-    net_reserve = _FIXED_NET * _CAP_H_RATIO if data.get("net_weight") else 0
+    net_reserve = (_FIXED_NET * _CAP_H_RATIO) if data.get("net_weight") else 0
 
     # 从 est_h 反推 content_h = est_h - a_h - n_blocks * 1.0 (binary search gap) - net_reserve
     content_h = est_h - a_h - n_blocks * 1.0 - net_reserve
@@ -1065,14 +1076,16 @@ def generate_label_pdf(data: dict, country_cfg: Optional[dict] = None) -> bytes:
     c.setFont(_FONT_NAME_BOLD, sizes["title"])
     en_name = data.get("product_name_en", "PRODUCT NAME")
     c.drawString(left, y, en_name)
-    y -= sizes["title"] * 1.15 + a_gap
 
     # 中文名
     cn_name = data.get("product_name_cn", "")
     if cn_name:
+        y -= sizes["title"] * 1.15 + a_gap  # en name (非最后)
         c.setFont(_FONT_NAME_BOLD, sizes["cn"])
         c.drawString(left, y, cn_name)
-        y -= sizes["cn"] * 1.15 + a_gap
+        y -= sizes["cn"] * 1.0 + a_gap      # cn name (最后，leading 缩减)
+    else:
+        y -= sizes["title"] * 1.0 + a_gap   # en name (最后，leading 缩减)
 
     # ============================================================
     # 区域 B+C：统一间距信息流
@@ -1168,7 +1181,7 @@ def generate_label_pdf(data: dict, country_cfg: Optional[dict] = None) -> bytes:
     net_weight = data.get("net_weight", "")
 
     # Net Volume 预留高度（baseline 在 bottom，文字向上延伸 cap height）
-    net_reserve = _FIXED_NET * _CAP_H_RATIO if net_weight else 0
+    net_reserve = (_FIXED_NET * _CAP_H_RATIO) if net_weight else 0
 
     # 营养表边界（已在 B 区域前计算 nut_top_y, nut_reserve, right_col_x, actual_right_w 等）
 
