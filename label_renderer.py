@@ -515,11 +515,11 @@ def _calc_font_sizes(data: dict, country_cfg: Optional[dict] = None) -> Tuple[di
     left_col_w = content_w * 0.38
     available_h = LABEL_H - 2 * MARGIN
 
-    # 法规最小字号（纵向字高）
+    # 法规最小字号（纵向字高），+5% 补偿 x-height 与 em size 差异
     min_font_pt = 4.0
     if country_cfg:
         min_mm = country_cfg.get("min_font_height_mm", 1.2)
-        min_font_pt = min_mm / 0.3528  # mm → pt
+        min_font_pt = min_mm / 0.3528 * 1.05  # mm → pt, +5% x-height 补偿
 
     # ======== 第一轮：纯纵向二分搜索（h_scale=1.0）========
     lo, hi = 0.0, 1.0

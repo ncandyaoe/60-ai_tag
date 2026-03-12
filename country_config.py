@@ -149,7 +149,7 @@ def validate_font_compliance(
     """
     cfg = get_country_config(country_code)
     min_mm = cfg["min_font_height_mm"]
-    actual_mm = round(font_size_pt * PT_TO_MM, 2)
+    actual_mm = round(font_size_pt * PT_TO_MM / 1.05, 2)  # 扣除 5% x-height 补偿
 
     # 临界警告线：高出最低线 20% 以内视为 warn
     warn_threshold = min_mm * 1.2
