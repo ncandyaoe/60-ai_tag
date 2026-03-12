@@ -591,6 +591,35 @@ def _calc_font_sizes(data: dict, country_cfg: Optional[dict] = None) -> Tuple[di
             sizes = _sizes_at_scale(best_scale2)
             h_scale = best_hs2
 
+    # ======== 第三轮（兜底）：强制法规最小字号 ========
+    # 如果经过前两轮，字号仍低于法规最小要求 → 强制使用法规最小字号 + 极限压缩
+    if sizes["body"] < min_font_pt or sizes["ingr"] < min_font_pt:
+        # 找到刚好满足法规最小字号的 scale
+        min_legal_scale = 0.0
+        for k in ["body", "ingr"]:
+            needed = (min_font_pt - _SIZE_MIN[k]) / max(_SIZE_MAX[k] - _SIZE_MIN[k], 0.001)
+            min_legal_scale = max(min_legal_scale, needed)
+        min_legal_scale = min(min_legal_scale, 1.0)
+
+        sizes = _sizes_at_scale(min_legal_scale)
+
+        # 用极限 h_scale 二分搜索（下限 0.3，即压缩到 30%）
+        hs_lo, hs_hi = 0.3, 1.0
+        best_hs = 0.3  # 最差情况就用 0.3
+
+        for _ in range(15):
+            hs_mid = (hs_lo + hs_hi) / 2
+            eff_w = _effective_width(content_w, hs_mid)
+            eff_left = _effective_width(left_col_w, hs_mid)
+            h_comp, _ = _estimate_content_height(data, sizes, eff_w, eff_left, available_h=available_h)
+            if h_comp <= available_h:
+                best_hs = hs_mid
+                hs_lo = hs_mid
+            else:
+                hs_hi = hs_mid
+
+        h_scale = best_hs
+
     # --------------------------------------------------
     # 统一间距计算
     # --------------------------------------------------
