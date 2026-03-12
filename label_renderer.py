@@ -278,7 +278,7 @@ def _calc_nutrition_height(data: dict, sizes: dict) -> float:
 
 
 def _collect_block_heights(data: dict, sizes: dict, content_w: float,
-                           left_col_w: float, h_scale: float = 1.0,
+                           left_col_w: float,
                            nut_narrow_w: float = 0) -> list[float]:
     """
     收集 B+C 区域所有信息块的纯文字高度（不含间距）。
@@ -290,9 +290,9 @@ def _collect_block_heights(data: dict, sizes: dict, content_w: float,
     _register_font()
     block_heights = []
 
-    eff_w = _effective_width(content_w, h_scale)
+    eff_w = content_w
     # 营养表避让区域的窄宽度（Manufacturer/Address/Importer 使用）
-    eff_nut_w = _effective_width(nut_narrow_w, h_scale) if nut_narrow_w > 0 else _effective_width(left_col_w, h_scale)
+    eff_nut_w = nut_narrow_w if nut_narrow_w > 0 else left_col_w
 
     # Logo 专区
     logo_reserve = LOGO_W + LOGO_PAD
@@ -364,7 +364,7 @@ def _collect_block_heights(data: dict, sizes: dict, content_w: float,
 
 
 def _estimate_content_height(data: dict, sizes: dict, content_w: float,
-                             left_col_w: float, h_scale: float = 1.0,
+                             left_col_w: float,
                              unified_gap: float = 1.0,
                              available_h: float = 0) -> Tuple[float, int]:
     """
@@ -372,6 +372,7 @@ def _estimate_content_height(data: dict, sizes: dict, content_w: float,
     布局模型：B+C 统一文本流 + L 形区域精确建模。
     通过追踪累计高度，判断每个 C 块是在营养表上方（用全宽）还是下方（用窄宽），
     精确匹配 _draw_wrapped_text 的渲染逻辑。
+    纵向估算不考虑横向压缩（h_scale），始终按原始宽度计算。
     """
     # A 区域高度
     h = sizes["title"] * 0.8
@@ -388,10 +389,10 @@ def _estimate_content_height(data: dict, sizes: dict, content_w: float,
     col_gap = 4
     nut_h = _calc_nutrition_height(data, sizes)
 
-    # 有效宽度
-    eff_w = _effective_width(content_w, h_scale)
+    # 有效宽度（不考虑横向压缩）
+    eff_w = content_w
     # 窄宽度：与渲染层 _draw_wrapped_text._line_width() 完全一致
-    nut_reserve_w = _effective_width(content_w * right_col_ratio, h_scale)
+    nut_reserve_w = content_w * right_col_ratio
     eff_nut_narrow = eff_w - nut_reserve_w
 
     body_leading = sizes["body"] * 1.15
@@ -490,7 +491,11 @@ def _estimate_content_height(data: dict, sizes: dict, content_w: float,
 
 def _calc_font_sizes(data: dict, country_cfg: Optional[dict] = None) -> Tuple[dict, float, float]:
     """
-    三阶段自适应字号计算 + 统一间距计算。
+    两轮自适应字号计算 + 统一间距计算。
+
+    第一轮：纯纵向二分搜索，找到在 content_w 下能放得下的最大字号。
+    第二轮：如果纵向有大量空白（L 形悬崖效应），尝试更大字号 + h_scale 压缩。
+            更大字号在 content_w 下会溢出，但在 content_w/h_scale 下可以放下。
 
     Returns:
         (sizes_dict, h_scale, unified_gap)
@@ -506,7 +511,7 @@ def _calc_font_sizes(data: dict, country_cfg: Optional[dict] = None) -> Tuple[di
         min_mm = country_cfg.get("min_font_height_mm", 1.2)
         min_font_pt = min_mm / 0.3528  # mm → pt
 
-    # 阶段1+2: 二分搜索最佳 scale (字号大小)
+    # ======== 第一轮：纯纵向二分搜索（h_scale=1.0）========
     lo, hi = 0.0, 1.0
     best_scale = 0.0
 
@@ -519,7 +524,7 @@ def _calc_font_sizes(data: dict, country_cfg: Optional[dict] = None) -> Tuple[di
             lo = mid
             continue
 
-        h, _ = _estimate_content_height(data, sizes, content_w, left_col_w, 1.0, available_h=available_h)
+        h, _ = _estimate_content_height(data, sizes, content_w, left_col_w, available_h=available_h)
         if h <= available_h:
             best_scale = mid
             lo = mid
@@ -527,32 +532,75 @@ def _calc_font_sizes(data: dict, country_cfg: Optional[dict] = None) -> Tuple[di
             hi = mid
 
     sizes = _sizes_at_scale(best_scale)
-    h, n_blocks = _estimate_content_height(data, sizes, content_w, left_col_w, 1.0, available_h=available_h)
-
-    # 阶段3: 如果最小字号仍然放不下 → 横向压缩
     h_scale = 1.0
-    if h > available_h:
-        sizes = _sizes_at_scale(0.0)
-        lo_s, hi_s = 0.7, 1.0
-        best_hs = 0.7
+
+    # ======== 第二轮：如果空白过大，尝试更大字号 + h_scale ========
+    est_h, n_blocks = _estimate_content_height(data, sizes, content_w, left_col_w, available_h=available_h)
+    leftover = available_h - est_h
+
+    # 判断是否值得第二轮搜索（每块平均空白 > 2pt）
+    if leftover > n_blocks * 2 and best_scale < 0.95:
+        # 在 best_scale 到 hi(=第一轮溢出边界) 之间搜索更大字号
+        # 同时搜索 h_scale，使得 estimate(content_w/h_scale) 纵向放得下
+        lo2 = best_scale
+        hi2 = min(best_scale + 0.3, 1.0)  # 限制搜索范围，避免字号过大
+        best_scale2 = best_scale
+        best_hs2 = 1.0
 
         for _ in range(15):
-            mid_s = (lo_s + hi_s) / 2
-            h, _ = _estimate_content_height(data, sizes, content_w, left_col_w, mid_s, available_h=available_h)
-            if h <= available_h:
-                best_hs = mid_s
-                lo_s = mid_s
+            mid2 = (lo2 + hi2) / 2
+            s2 = _sizes_at_scale(mid2)
+
+            if s2["ingr"] < min_font_pt or s2["body"] < min_font_pt:
+                lo2 = mid2
+                continue
+
+            # 用原始宽度估算高度，看溢出多少
+            h_full, _ = _estimate_content_height(data, s2, content_w, left_col_w, available_h=available_h)
+
+            if h_full <= available_h:
+                # 不需要压缩就能放下 → 第一轮应该已找到，但确认一下
+                best_scale2 = mid2
+                best_hs2 = 1.0
+                lo2 = mid2
             else:
-                hi_s = mid_s
+                # 需要压缩：二分搜索 h_scale
+                # 压缩后等效宽度 = content_w / h_scale，每行放更多字，行数减少
+                hs_lo, hs_hi = 0.75, 1.0
+                found_hs = False
+                for _ in range(10):
+                    hs_mid = (hs_lo + hs_hi) / 2
+                    eff_w = _effective_width(content_w, hs_mid)
+                    eff_left = _effective_width(left_col_w, hs_mid)
+                    h_comp, _ = _estimate_content_height(data, s2, eff_w, eff_left, available_h=available_h)
+                    if h_comp <= available_h:
+                        found_hs = True
+                        hs_lo = hs_mid  # 尝试更大的 h_scale（更少压缩）
+                    else:
+                        hs_hi = hs_mid
 
-        h_scale = best_hs
-        _, n_blocks = _estimate_content_height(data, sizes, content_w, left_col_w, h_scale, available_h=available_h)
+                if found_hs:
+                    best_scale2 = mid2
+                    best_hs2 = hs_lo
+                    lo2 = mid2
+                else:
+                    hi2 = mid2
+
+        # 使用第二轮结果（如果改进了）
+        if best_scale2 > best_scale:
+            sizes = _sizes_at_scale(best_scale2)
+            h_scale = best_hs2
 
     # --------------------------------------------------
-    # 统一间距计算：用精确的 L 形估算结果
+    # 统一间距计算
     # --------------------------------------------------
-    # 重新调用以获取精确的总高度和块数
-    est_h, n_blocks = _estimate_content_height(data, sizes, content_w, left_col_w, h_scale, available_h=available_h)
+    # 用最终的 h_scale 估算高度
+    if h_scale < 1.0:
+        eff_w = _effective_width(content_w, h_scale)
+        eff_left = _effective_width(left_col_w, h_scale)
+        est_h, n_blocks = _estimate_content_height(data, sizes, eff_w, eff_left, available_h=available_h)
+    else:
+        est_h, n_blocks = _estimate_content_height(data, sizes, content_w, left_col_w, available_h=available_h)
 
     # A 区域固定高度
     a_h = sizes["title"] * 0.8 + sizes["title"] * 1.15 + 1
@@ -574,6 +622,137 @@ def _calc_font_sizes(data: dict, country_cfg: Optional[dict] = None) -> Tuple[di
     unified_gap = max(1.0, min(unified_gap, max_gap))
 
     return sizes, h_scale, unified_gap
+
+
+# --------------------------------------------------
+# 后置横向压缩：检测 L 形正文区域最大行宽
+# --------------------------------------------------
+def _calc_lshape_h_scale(data: dict, sizes: dict, content_w: float) -> float:
+    """
+    模拟 L 形正文区域所有文本块的逐行排版，
+    找出最宽的一行（含粗体前缀），计算需要的横向压缩比。
+
+    Returns:
+        h_scale: 1.0 表示不需要压缩，<1.0 表示需要压缩
+    """
+    _register_font()
+    max_w = 0.0
+
+    ingr_fs = sizes["ingr"]
+    body_fs = sizes["body"]
+
+    def _scan_max_width(text: str, font_name: str, font_size: float,
+                        max_width: float, bold_prefix: str = ""):
+        """扫描一段文本，找出最宽行的像素宽度。"""
+        nonlocal max_w
+        if not text:
+            return
+
+        # 第一行含粗体前缀
+        if bold_prefix:
+            prefix_w = pdfmetrics.stringWidth(bold_prefix, _FONT_NAME_BOLD, font_size)
+        else:
+            prefix_w = 0
+
+        words = text.split(' ')
+        current_line = ""
+        first_line = True
+
+        for word in words:
+            test_line = current_line + (" " if current_line else "") + word
+            w = pdfmetrics.stringWidth(test_line, font_name, font_size)
+
+            # 第一行需要加上前缀宽度来判断是否换行
+            line_total = (w + prefix_w) if first_line else w
+
+            if line_total <= max_width:
+                current_line = test_line
+            else:
+                # 记录当前行的实际宽度
+                if current_line:
+                    cur_w = pdfmetrics.stringWidth(current_line, font_name, font_size)
+                    actual_w = (cur_w + prefix_w) if first_line else cur_w
+                    max_w = max(max_w, actual_w)
+                    first_line = False
+                elif first_line and bold_prefix:
+                    max_w = max(max_w, prefix_w)
+                    first_line = False
+
+                # 检查单词本身是否超宽
+                word_w = pdfmetrics.stringWidth(word, font_name, font_size)
+                if word_w > max_width:
+                    # 字符级断词：记录超宽片段
+                    chunk = ""
+                    for ch in word:
+                        test_chunk = chunk + ch
+                        cw = pdfmetrics.stringWidth(test_chunk, font_name, font_size)
+                        if cw > max_width and chunk:
+                            max_w = max(max_w, pdfmetrics.stringWidth(chunk, font_name, font_size))
+                            chunk = ch
+                        else:
+                            chunk = test_chunk
+                    current_line = chunk
+                else:
+                    current_line = word
+
+        # 最后一行
+        if current_line:
+            cur_w = pdfmetrics.stringWidth(current_line, font_name, font_size)
+            actual_w = (cur_w + prefix_w) if first_line else cur_w
+            max_w = max(max_w, actual_w)
+
+    # --- 扫描所有 L 形正文块 ---
+
+    # Ingredients
+    ingr = data.get("ingredients", "")
+    if ingr:
+        _scan_max_width(ingr, _FONT_NAME, ingr_fs, content_w, "Ingredients: ")
+
+    # Contains
+    allergens = data.get("allergens", "")
+    if allergens:
+        _scan_max_width(allergens, _FONT_NAME, body_fs, content_w, "Contains: ")
+
+    # Storage
+    storage = data.get("storage", "")
+    if storage:
+        _scan_max_width(storage, _FONT_NAME, body_fs, content_w)
+
+    # Production date / Best Before
+    prod_date = data.get("production_date", "")
+    best_before = data.get("best_before", "")
+    if prod_date and best_before:
+        # 合并行：各段文本宽度之和
+        segments = [
+            ("Production date: ", _FONT_NAME_BOLD),
+            (f"{prod_date} / ", _FONT_NAME),
+            ("Best Before: ", _FONT_NAME_BOLD),
+            (best_before, _FONT_NAME),
+        ]
+        line_w = sum(pdfmetrics.stringWidth(s, f, body_fs) for s, f in segments)
+        max_w = max(max_w, line_w)
+    elif prod_date:
+        _scan_max_width(prod_date, _FONT_NAME, body_fs, content_w, "Production date: ")
+    elif best_before:
+        _scan_max_width(best_before, _FONT_NAME, body_fs, content_w, "Best Before: ")
+
+    # Product of
+    origin = data.get("origin", "China")
+    origin_w = pdfmetrics.stringWidth(f"Product of {origin}", _FONT_NAME_BOLD, body_fs)
+    max_w = max(max_w, origin_w)
+
+    # Manufacturer / Address / Imported by
+    for field, prefix in [("manufacturer", "Manufacturer: "),
+                          ("manufacturer_address", "Address: "),
+                          ("importer_info", "Imported by:")]:
+        txt = data.get(field, "")
+        if txt:
+            _scan_max_width(txt, _FONT_NAME, body_fs, content_w, prefix)
+
+    # 计算压缩比
+    if max_w <= content_w or max_w <= 0:
+        return 1.0
+    return content_w / max_w
 
 
 # --------------------------------------------------
@@ -817,10 +996,9 @@ def generate_label_pdf(data: dict, country_cfg: Optional[dict] = None) -> bytes:
     # 首行 baseline 下移 ascent，让字符顶部不超出 margin
     y = top - sizes["title"] * 0.8
 
-    # 应用横向压缩 (Tz PDF 操作符: 100=正常, 70=压缩到70%)
-    if h_scale < 1.0:
-        tz_pct = int(h_scale * 100)
-        c._code.append(f'{tz_pct} Tz')
+    # 后置横向压缩：仅对 L 形正文区域生效（由两轮搜索确定）
+    # h_scale 已由 _calc_font_sizes 两轮搜索确定，不再此处计算
+    # h_scale_post = _calc_lshape_h_scale(data, sizes, content_w)  # 备用
 
     # ============================================================
     # 区域 A：产品英文名 + 中文名（左）、Logo（右上）
@@ -862,6 +1040,11 @@ def generate_label_pdf(data: dict, country_cfg: Optional[dict] = None) -> bytes:
     # ============================================================
 
     # ---- B 区域：全宽文字信息 ----
+
+    # 在 L 形正文区域开始前设置横向压缩
+    if h_scale < 1.0:
+        tz_pct = int(h_scale * 100)
+        c._code.append(f'{tz_pct} Tz')
 
     # Ingredients
     ingredients = data.get("ingredients", "")
@@ -961,11 +1144,10 @@ def generate_label_pdf(data: dict, country_cfg: Optional[dict] = None) -> bytes:
     # 营养表总高度 & 固定区域位置
     nut_total_h = _calc_nutrition_height(data, sizes)
     nut_top_y = bottom + nut_total_h  # 营养表顶部 y 坐标（底部贴 bottom）
-    nut_reserve = _effective_width(right_col_w, h_scale)  # 避让宽度（等效宽度）
+    nut_reserve = _effective_width(right_col_w, h_scale)  # 避让宽度
 
     # ------------------------------------------------------------------
-    # C 左栏间距计算：将剩余空间均匀分配给各元素之间
-    # 目标：左栏元素均匀分布，Net Volume 底部与营养表底部齐平
+    # C 左栏间距计算
     # ------------------------------------------------------------------
     # 先估算 C 左栏各元素内容高度（不含间距）
     # 使用 L 形逐行估算，匹配 _draw_wrapped_text 的动态宽度
@@ -1068,6 +1250,10 @@ def generate_label_pdf(data: dict, country_cfg: Optional[dict] = None) -> bytes:
             min_y=c_bottom_limit
         )
 
+    # L 形正文区域结束，重置横向压缩
+    if h_scale < 1.0:
+        c._code.append('100 Tz')
+
     # --- Net Volume：底部与营养表齐平（baseline 贴 MARGIN，保证 2mm 出血）---
     if net_weight:
         actual_net_fs = sizes["net"]
@@ -1094,10 +1280,6 @@ def generate_label_pdf(data: dict, country_cfg: Optional[dict] = None) -> bytes:
     if data.get("is_halal"):
         c.setFont(_FONT_NAME_BOLD, 5)
         c.drawString(left, bottom, "☪ HALAL")
-
-    # 重置横向压缩
-    if h_scale < 1.0:
-        c._code.append('100 Tz')
 
     c.save()
     return buf.getvalue()
