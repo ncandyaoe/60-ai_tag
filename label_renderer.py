@@ -11,6 +11,8 @@ import base64
 import os
 from typing import Optional, Tuple
 
+from template_config import TemplateConfig, get_default_template
+
 from reportlab.lib.units import mm
 from reportlab.pdfgen import canvas as pdf_canvas
 from reportlab.pdfbase import pdfmetrics
@@ -21,16 +23,18 @@ from reportlab.lib.colors import black
 import fitz  # PyMuPDF
 
 # --------------------------------------------------
-# 常量
+# 常量（从默认模板派生，保持向后兼容）
 # --------------------------------------------------
-LABEL_W = 70 * mm    # 裁切尺寸 70mm ≈ 198.4pt
-LABEL_H = 69 * mm    # 裁切尺寸 69mm ≈ 195.6pt
-MARGIN = 2 * mm       # 出血位 2mm ≈ 5.67pt  → 内容安全区域 66×65mm
+_DEFAULT_TPL = get_default_template()
+
+LABEL_W = _DEFAULT_TPL.label_w
+LABEL_H = _DEFAULT_TPL.label_h
+MARGIN = _DEFAULT_TPL.margin
 
 # Logo 专区
-LOGO_W = 40           # logo 宽度 (pt)
-LOGO_H = 5.4 * mm     # logo 高度 5.4mm（设计固定值）
-LOGO_PAD = 2          # logo 与文字的间距 (pt)
+LOGO_W = _DEFAULT_TPL.logo.width_pt
+LOGO_H = _DEFAULT_TPL.logo.height_pt
+LOGO_PAD = _DEFAULT_TPL.logo.padding_pt
 
 # --------------------------------------------------
 # 字体注册
@@ -118,19 +122,20 @@ def _draw_bold_right_string(c, x: float, y: float, text: str, font_size: float):
 # --------------------------------------------------
 # 三阶段自适应字号算法
 # --------------------------------------------------
-# 最大字号（scale=1.0）和最小字号（scale=0.0）的映射
-# 70×69mm 标签固定尺寸（设计师标注的是视觉字高 cap height，需要换算）
-# 换算公式: font_pt = visual_mm / (CAP_H_RATIO * 0.3528)
-_CAP_H_RATIO = 0.735                 # AliPuHuiTi 字体 cap height 比例（实测反推）
-_X_HEIGHT_RATIO = 0.54                # AliPuHuiTi 字体 x-height 比例（sxHeight=540, UPM=1000）
-_FIXED_TITLE = 8.0                               # 英文标题 8.0pt
-_FIXED_CN    = 9.8                               # 中文标题 9.8pt
-_FIXED_NET   = 21                                # Net Volume 固定 21pt
-_FIXED_NUT_ROW_H = 2.8 * mm                     # 营养表行高 2.8mm → 7.94pt（直接物理尺寸）
-_FIXED_NUT   = _FIXED_NUT_ROW_H - 2             # 营养表字号 = 行高 - 2pt padding → 5.94pt
+# 字体度量常量（字体级别，不随模板变化）
+_CAP_H_RATIO = _DEFAULT_TPL.cap_height_ratio
+_X_HEIGHT_RATIO = _DEFAULT_TPL.x_height_ratio
 
-_SIZE_MAX = {"title": _FIXED_TITLE, "cn": _FIXED_CN, "body": 16, "ingr": 14, "nut": _FIXED_NUT, "net": _FIXED_NET}
-_SIZE_MIN = {"title": _FIXED_TITLE, "cn": _FIXED_CN, "body": 4,  "ingr": 4,  "nut": _FIXED_NUT, "net": _FIXED_NET}
+# 固定字号（从默认模板派生）
+_FIXED_TITLE = _DEFAULT_TPL.fixed_sizes.title_pt
+_FIXED_CN    = _DEFAULT_TPL.fixed_sizes.cn_pt
+_FIXED_NET   = _DEFAULT_TPL.fixed_sizes.net_pt
+_FIXED_NUT_ROW_H = _DEFAULT_TPL.nutrition.row_height_pt
+_FIXED_NUT   = _DEFAULT_TPL.nutrition.font_size_pt
+
+# 自适应字号范围（从默认模板派生）
+_SIZE_MAX = _DEFAULT_TPL.size_max()
+_SIZE_MIN = _DEFAULT_TPL.size_min()
 
 
 def _sizes_at_scale(scale: float) -> dict:
@@ -334,7 +339,7 @@ def _collect_block_heights(data: dict, sizes: dict, content_w: float,
         n = _count_text_lines(storage, _FONT_NAME, sizes["body"], eff_w)
         block_heights.append(n * body_leading)
 
-    # Production date / Best Before
+    # Production date / Best Before（合并为一行估算）
     prod_date = data.get("production_date", "")
     best_before = data.get("best_before", "")
     if prod_date or best_before:
@@ -806,6 +811,80 @@ def _calc_lshape_h_scale(data: dict, sizes: dict, content_w: float) -> float:
 
 
 # --------------------------------------------------
+# Canvas 辅助：分段加粗换行绘制（用于日期行等有多个加粗标签的场景）
+# --------------------------------------------------
+def _draw_segments_wrapped(c, segments, x: float, y: float, max_width: float,
+                           font_size: float, leading: float = 0,
+                           h_scale: float = 1.0,
+                           nut_top_y: float = 99999, nut_reserve: float = 0,
+                           min_y: float = -999) -> float:
+    """
+    在 Canvas 上绘制多段文本（每段可指定不同字体），自动换行。
+    segments: [(text, font_name), ...]
+    用于 "Production date: xxx / Best Before: xxx" 等需要多处加粗的场景。
+    """
+    if not leading:
+        leading = font_size * 1.15
+
+    eff_width = _effective_width(max_width, h_scale)
+
+    def _line_w(cur_y):
+        w = eff_width
+        if nut_reserve > 0 and cur_y <= nut_top_y + 2:
+            w -= nut_reserve
+        return w
+
+    # 将所有 segments 拆解成 tokens: (word_or_space, font_name)
+    tokens = []
+    for text, font_name in segments:
+        words = text.split(' ')
+        for i, w in enumerate(words):
+            if i > 0:
+                tokens.append((' ', font_name))
+            if w:
+                tokens.append((w, font_name))
+
+    # 逐 token 排列，超宽换行
+    lines = []  # 每行是 [(text, font_name, x_offset), ...]
+    cur_line = []
+    cur_w = 0
+    sim_y = y
+
+    for token_text, token_font in tokens:
+        tw = pdfmetrics.stringWidth(token_text, token_font, font_size)
+        avail = _line_w(sim_y)
+
+        if cur_w + tw > avail and cur_line:
+            # 当前行满，换行
+            lines.append(cur_line)
+            sim_y -= leading
+            cur_line = []
+            cur_w = 0
+            # 跳过行首空格
+            if token_text.strip() == '':
+                continue
+
+        cur_line.append((token_text, token_font))
+        cur_w += tw
+
+    if cur_line:
+        lines.append(cur_line)
+
+    # 绘制（h_scale 由调用方通过 PDF Tz 操作符全局设置，此处不重复设置）
+    for line_tokens in lines:
+        if y < min_y:
+            break
+        cx = x
+        for token_text, token_font in line_tokens:
+            c.setFont(token_font, font_size)
+            c.drawString(cx, y, token_text)
+            cx += pdfmetrics.stringWidth(token_text, token_font, font_size) * h_scale
+        y -= leading
+
+    return y
+
+
+# --------------------------------------------------
 # Canvas 辅助：自动换行绘制文本
 # --------------------------------------------------
 def _draw_wrapped_text(c, text: str, x: float, y: float, max_width: float,
@@ -832,7 +911,8 @@ def _draw_wrapped_text(c, text: str, x: float, y: float, max_width: float,
         w = eff_width
         if logo_reserve > 0 and cur_y > logo_bottom_y:
             w -= logo_reserve
-        if nut_reserve > 0 and cur_y < nut_top_y:
+        # 使用 <= 并加 2pt 缓冲，仅防止文字紧贴营养表边框时穿过标题区域
+        if nut_reserve > 0 and cur_y <= nut_top_y + 2:
             w -= nut_reserve
         return w
 
@@ -1146,17 +1226,22 @@ def generate_label_pdf(data: dict, country_cfg: Optional[dict] = None) -> bytes:
         )
         y -= unified_gap
 
-    # Production date / Best Before
+    # Production date / Best Before（单行，双标签加粗）
     prod_date = data.get("production_date", "")
     best_before = data.get("best_before", "")
     if prod_date or best_before:
         if prod_date and best_before:
-            # 合并为一个文本块，统一走 _draw_wrapped_text 以正确避让营养表
-            date_text = f"{prod_date} / Best Before: {best_before}"
-            y = _draw_wrapped_text(
-                c, date_text, left, y,
-                content_w, _FONT_NAME, sizes["body"],
-                bold_prefix="Production date: ", h_scale=h_scale,
+            # 分段渲染：Production date: 和 Best Before: 都加粗
+            segments = [
+                ("Production date: ", _FONT_NAME_BOLD),
+                (f"{prod_date} / ", _FONT_NAME),
+                ("Best Before: ", _FONT_NAME_BOLD),
+                (best_before, _FONT_NAME),
+            ]
+            y = _draw_segments_wrapped(
+                c, segments, left, y,
+                content_w, sizes["body"],
+                h_scale=h_scale,
                 nut_top_y=nut_top_y, nut_reserve=nut_reserve
             )
         elif prod_date:
