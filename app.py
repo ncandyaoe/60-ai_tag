@@ -11,6 +11,7 @@ from country_config import (
     COUNTRY_REGISTRY,
 )
 from label_renderer import generate_label_preview_html, generate_label_pdf
+from template_config import list_templates, get_template
 
 # ==========================================
 # Jinja2 模板环境：加载 templates/ 目录下的模板
@@ -197,6 +198,46 @@ PLM_EXAMPLES = {
     "场景2 - 老抽酱油 (广州宝来星 进口)":     PLM_EXAMPLE_2,
 }
 
+# 场景3：荷兰京东国际 草菇老抽（50×120mm，5 语言）
+PLM_EXAMPLE_NL = {
+    "product_name_en": "【EN】0 MUSHROOM DARK SOY SAUCE /  【NL】0 CHAMPIGNON DONKERE SOJASAUS /  【ES】0 SALSA DE SOYA OSCURA DE SETA DE PAJA /  【DE】0 SOJASAUCE MIT PILZGESCHMACK /  【FR】0 SAUCE DE SOJA AU CHAMPIGNON\n\n0草菇老抽",
+    "product_name_cn": "",
+    "net_weight": "500mL",
+    "ingredients": "[EN] Ingredients: Water, <u>Soybeans</u> (23%), Sugar, Salt, <u>Wheat(Gluten)</u>(11%), Mushroom Extract(0.002%). / [NL] Ingrediënten: Water, <u>Sojabonen</u> (23%), Suiker, Zout, <u>Tarwe(Gluten)</u>(11%), Paddenstoelenextract (0.002%). / [ES]Ingredientes: Agua, <u>Soja</u> (23%), Azúcar, Sal, <u>Trigo(Gluten)</u>(11%), Jugo de Seta de Paja(0.002%). / [DE] Zutaten: Wasser, <u>Sojabohnen</u> (23%), Zucker, Salz, <u>Weizen(Gluten)</u>(11%), Hefeextrakt (0.002%). / [FR] Ingrédients:Eau, <u>Soja</u> (23%), Sucre, Sel, <u>Blé(Gluten)</u>(11%), Extrait de Champignon (0.002%).",
+    "allergens": "",
+    "storage": "Store in a cool, dry place.Please keep in refrigerator after opening and consume as soon as possible. / Bewaren op een koele, droge plaats. Na opening in de koelkast bewaren en zo snel mogelijk consumeren. / Conservar en un lugar fresco y seco. Conservar en el frigorífico una vez abierto y consumir lo antes posible. / Kühl und trocken lagern. Nach dem Öffnen bitte im Kühlschrank aufbewahren und schnellstmöglich verbrauchen. / Conserver dans un endroit frais et sec.Veuillez conserver au réfrigérateur après ouverture et consommer dès que possible.",
+    "usage": "Good for dipping, cold-mixing, stir-frying and braising for coloring./ Goed voor onderdompelen, koud mengen, roerbakken en te smoren voor kleur./ Servir para mojar, mezclar en frío, saltear y estofar para dar color. / Gut zum Dippen, Kaltmischen, Braten und Schmoren zum Färben./ Bon pour tremper, mélanger à froid, faire sauter et les plats mijotés pour ajouter de la couleur.",
+    "production_date": "",
+    "best_before": "Best before / Ten minste houdbaar tot / Consumir preferentemente antes del / Mindestens haltbar bis / Á consommer de préférence avant le: See the package / Zie verpakking / Ver envase / Siehe verpackung / Voir emballage (DD/MM/YYYY).",
+    "product_of": "Product of China / Product uit China / Producto de China / Produkt aus China / Produit de Chine",
+    "origin": "China",
+    "manufacturer": "",
+    "manufacturer_address": "",
+    "importer_info": "JINGDONG RETAIL (NETHERLANDS) B.V.",
+    "importer_address": "Da Vincistraat 5, 2652XE, Berkel en Rodenrijs, The Netherlands",
+    "brand_logo": "",
+    "is_halal": False,
+    "target_country": "NL",
+    "nutrition": {
+        "serving_size": "100mL",
+        "title": "Nutrition declaration / Voedingswaardevermelding / Información nutricional / Nährwertdeklaration / Déclaration nutritionnelle",
+        "per_label": "Nutrition facts per / Voedingswaarde per / Valor nutricional por / Nährwerte pro / Valeur nutritive pour  100mL",
+        "table_data": [
+            {"name": "Energy / Energie / Valor energético / Energie / Énergie", "per_serving": "706 kJ / 167 kcal"},
+            {"name": "Fat / Vetten / Grasas / Fett / Matières grasses", "per_serving": "0 g"},
+            {"name": "of which / waarvan / de las cuales / davon / dont", "per_serving": "", "is_sub": True},
+            {"name": "-Saturates / Verzadigde vetzuren / Saturadas / gesättigte Fettsäuren / Acides gras saturés", "per_serving": "0 g", "is_sub": True},
+            {"name": "Carbohydrate / Koolhydraten / Hidratos de carbono / Kohlenhydrate / Glucides", "per_serving": "32 g"},
+            {"name": "of which / waarvan / de los cuales / davon / dont", "per_serving": "", "is_sub": True},
+            {"name": "-Sugars / Suikers / Azúcares / Zucker / Sucres", "per_serving": "7.1 g", "is_sub": True},
+            {"name": "Protein / Eiwitten / Proteínas / Eiweiß / Protéines", "per_serving": "11 g"},
+            {"name": "Salt / Zout / Sal / Salz / Sel", "per_serving": "18.8 g"}
+        ]
+    }
+}
+
+PLM_EXAMPLES["场景3 - 荷兰草菇老抽 (京东国际 50×120mm)"] = PLM_EXAMPLE_NL
+
 # --------------------------------------------------
 # UI
 # --------------------------------------------------
@@ -224,6 +265,17 @@ with col1:
     )
     selected_country_code = country_codes[country_labels.index(selected_country_label)]
 
+    # 模板选择器
+    tpl_dict = list_templates()
+    tpl_ids = list(tpl_dict.keys())
+    tpl_names = list(tpl_dict.values())
+    selected_tpl_name = st.selectbox(
+        "📐 标签模板（尺寸 & 布局）：",
+        tpl_names,
+        index=0,
+    )
+    selected_tpl_id = tpl_ids[tpl_names.index(selected_tpl_name)]
+
     # JSON 编辑器
     json_input = st.text_area(
         "PLM JSON 数据（可直接粘贴或编辑）",
@@ -237,6 +289,7 @@ with col1:
             structured_data = json.loads(json_input)
             st.session_state['label_data'] = structured_data
             st.session_state['country_code'] = selected_country_code
+            st.session_state['template_id'] = selected_tpl_id
             st.success("JSON 解析成功，标签已生成！")
         except json.JSONDecodeError as e:
             st.error(f"JSON 格式错误，请检查输入：{e}")
@@ -265,7 +318,9 @@ with col2:
         # 服务端生成 PDF + PNG 预览
         # --------------------------------------------------
         country_cfg = get_country_config(cc)
-        preview_html, pdf_bytes = generate_label_preview_html(data, country_cfg)
+        tpl_id = st.session_state.get('template_id', 'au_70x69')
+        tpl = get_template(tpl_id)
+        preview_html, pdf_bytes = generate_label_preview_html(data, country_cfg, tpl=tpl)
         st.components.v1.html(preview_html, height=600, scrolling=True)
 
         # 下载按钮

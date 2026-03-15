@@ -1,0 +1,54 @@
+# 荷兰小标签 (50×120mm) — 纯垂直流布局，5语言
+template_id: nl_50x120
+display_name: "荷兰小标签 (50×120mm)"
+target_country: NL
+
+# --- 标签物理尺寸 ---
+label_size:
+  width_mm: 50
+  height_mm: 120
+  margin_mm: 2.0
+
+# --- 布局类型 ---
+layout:
+  type: stacked              # 纯垂直流（从上到下）
+  bilingual: true
+  bilingual_lang: multi      # EN/NL/ES/DE/FR 多语言
+  ingr_box_border: false
+
+# --- 固定字号 (pt) ---
+fixed_sizes:
+  title_pt: 7.0              # 多语品名（固定 4 行 + Tz 压缩）
+  cn_pt: 7.0                 # 中文品名
+  net_pt: 16.0               # Net Volume
+
+# --- 自适应字号范围 (pt) ---
+adaptive_range:
+  body_min_pt: 3.0
+  body_max_pt: 7.0
+  ingr_min_pt: 3.0
+  ingr_max_pt: 7.0
+
+# --- Logo 配置 ---
+logo:
+  enabled: true
+  width_pt: 30
+  height_mm: 3.5
+  padding_pt: 2
+
+# --- 营养表配置 ---
+nutrition:
+  right_col_ratio: 1.0       # 全宽
+  col_gap_pt: 0
+  row_height_mm: 1.9          # 小行高 → 字号 ~3.4pt
+  font_padding_pt: 2
+  format: eu                  # 欧盟格式 (无 NRV% 列)
+  position: bottom_full       # 底部全宽
+
+# --- 环保标识配置 ---
+eco_icons:
+  enabled: true
+  height_mm: 6.0
+  icons:
+    - 2.png                   # 西班牙 Al Verde + Al Amarillo
+    - 1.png                   # 法国 FR 环保标识

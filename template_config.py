@@ -2,12 +2,14 @@
 模板配置系统
 
 将标签布局参数从硬编码提取为可配置的 dataclass，
-为多模板适配做准备。
+为多模板适配做准备。支持从 YAML 文件加载模板。
 """
 
 from dataclasses import dataclass, field
 from typing import Dict, Optional
+from pathlib import Path
 from reportlab.lib.units import mm
+import yaml
 
 
 @dataclass
@@ -37,6 +39,7 @@ class NutritionConfig:
     row_height_mm: float = 2.8      # 营养表行高 (mm)
     font_padding_pt: float = 2      # 行高 - 字号的 padding (pt)
     format: str = "australia"       # 营养表格式: australia | canada_bilingual | eu
+    position: str = "bottom_right"  # 营养表位置: bottom_right | right_full | bottom_full
 
     @property
     def row_height_pt(self) -> float:
@@ -69,6 +72,27 @@ class AdaptiveRange:
 
 
 @dataclass
+class EcoIconConfig:
+    """环保标识配置"""
+    enabled: bool = False
+    height_mm: float = 8.0
+    icons: list = field(default_factory=list)
+
+    @property
+    def height_pt(self) -> float:
+        return self.height_mm * mm
+
+
+@dataclass
+class LayoutConfig:
+    """布局配置"""
+    type: str = "l_shape"          # l_shape | dual_column | stacked
+    bilingual: bool = False        # 是否双语
+    bilingual_lang: str = ""       # 双语语言: fr | zh | multi 等
+    ingr_box_border: bool = False  # 配料表是否有边框
+
+
+@dataclass
 class TemplateConfig:
     """标签模板配置
 
@@ -78,6 +102,7 @@ class TemplateConfig:
     # --- 模板标识 ---
     template_id: str = "au_70x69"
     display_name: str = "澳洲小标签 (70×69mm)"
+    target_country: str = "AU"
 
     # --- 标签物理尺寸 ---
     label_width_mm: float = 70.0
@@ -91,6 +116,8 @@ class TemplateConfig:
     # --- 布局子配置 ---
     logo: LogoConfig = field(default_factory=LogoConfig)
     nutrition: NutritionConfig = field(default_factory=NutritionConfig)
+    layout: LayoutConfig = field(default_factory=LayoutConfig)
+    eco_icons: EcoIconConfig = field(default_factory=EcoIconConfig)
 
     # --- 字体度量（字体相关，通常固定） ---
     cap_height_ratio: float = 0.735   # cap height / em
@@ -159,6 +186,43 @@ class TemplateConfig:
 
 
 # ===========================
+# YAML → TemplateConfig 转换
+# ===========================
+def _template_from_yaml(data: dict) -> TemplateConfig:
+    """将 YAML 字典转换为 TemplateConfig 实例"""
+    label_size = data.get("label_size", {})
+    fixed = data.get("fixed_sizes", {})
+    adaptive = data.get("adaptive_range", {})
+    logo_cfg = data.get("logo", {})
+    nut_cfg = data.get("nutrition", {})
+    layout_cfg = data.get("layout", {})
+    eco_cfg = data.get("eco_icons", {})
+
+    # Logo: YAML 用 height_mm，dataclass 用 height_pt
+    logo_height_mm = logo_cfg.pop("height_mm", 5.4) if "height_mm" in logo_cfg else 5.4
+    logo_kwargs = {k: v for k, v in logo_cfg.items() if k in LogoConfig.__dataclass_fields__}
+    logo_kwargs["height_pt"] = logo_height_mm * mm
+
+    # EcoIcons: icons 字段需特殊处理（list）
+    eco_kwargs = {k: v for k, v in eco_cfg.items() if k in EcoIconConfig.__dataclass_fields__}
+
+    return TemplateConfig(
+        template_id=data.get("template_id", "unknown"),
+        display_name=data.get("display_name", "Unknown"),
+        target_country=data.get("target_country", "AU"),
+        label_width_mm=label_size.get("width_mm", 70),
+        label_height_mm=label_size.get("height_mm", 69),
+        margin_mm=label_size.get("margin_mm", 2.0),
+        fixed_sizes=FixedSizes(**{k: v for k, v in fixed.items() if k in FixedSizes.__dataclass_fields__}),
+        adaptive_range=AdaptiveRange(**{k: v for k, v in adaptive.items() if k in AdaptiveRange.__dataclass_fields__}),
+        logo=LogoConfig(**logo_kwargs),
+        nutrition=NutritionConfig(**{k: v for k, v in nut_cfg.items() if k in NutritionConfig.__dataclass_fields__}),
+        layout=LayoutConfig(**{k: v for k, v in layout_cfg.items() if k in LayoutConfig.__dataclass_fields__}),
+        eco_icons=EcoIconConfig(**eco_kwargs),
+    )
+
+
+# ===========================
 # 模板注册表
 # ===========================
 _TEMPLATE_REGISTRY: Dict[str, TemplateConfig] = {}
@@ -184,13 +248,27 @@ def list_templates() -> Dict[str, str]:
     return {tid: t.display_name for tid, t in _TEMPLATE_REGISTRY.items()}
 
 
+def load_templates_from_dir(templates_dir: Optional[str] = None):
+    """从 templates/ 目录加载所有 YAML 模板文件"""
+    if templates_dir is None:
+        templates_dir = str(Path(__file__).parent / "templates")
+
+    tpl_path = Path(templates_dir)
+    if not tpl_path.exists():
+        return
+
+    for yaml_file in sorted(tpl_path.glob("*.yaml")):
+        try:
+            with open(yaml_file, "r", encoding="utf-8") as f:
+                data = yaml.safe_load(f)
+            if data and "template_id" in data:
+                config = _template_from_yaml(data)
+                register_template(config)
+        except Exception as e:
+            print(f"⚠️ 加载模板 {yaml_file.name} 失败: {e}")
+
+
 # ===========================
-# 注册默认模板
+# 启动时自动加载模板
 # ===========================
-register_template(TemplateConfig(
-    template_id="au_70x69",
-    display_name="澳洲小标签 (70×69mm)",
-    label_width_mm=70.0,
-    label_height_mm=69.0,
-    margin_mm=2.0,
-))
+load_templates_from_dir()

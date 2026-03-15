@@ -95,6 +95,15 @@ COUNTRY_REGISTRY = {
         "icons": ["eac"],
         "show_magnifier": False,
     },
+    "NL": {
+        "name": "荷兰",
+        "lang": "multi",
+        "min_font_height_mm": 1.2,    # 欧盟标准
+        "nutrition_title": "Nutrition declaration",
+        "nutrition_header": ["", "Per 100mL", ""],
+        "icons": [],
+        "show_magnifier": False,
+    },
     "DEFAULT": {
         "name": "默认（通用出口）",
         "lang": "en",

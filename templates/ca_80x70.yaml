@@ -1,0 +1,43 @@
+# 加拿大大蚝油标签 (80×70mm) — 左右分栏布局，英法双语
+template_id: ca_80x70
+display_name: "加拿大大标签 (80×70mm)"
+target_country: CA
+
+# --- 标签物理尺寸 ---
+label_size:
+  width_mm: 80
+  height_mm: 70
+  margin_mm: 1.5
+
+# --- 布局类型 ---
+layout:
+  type: dual_column        # 左右分栏
+  bilingual: true
+  bilingual_lang: fr       # 法语
+  ingr_box_border: true    # 配料表有边框
+
+# --- 固定字号 (pt) ---
+fixed_sizes:
+  title_pt: 7.0            # 品名
+  cn_pt: 7.0               # 中文品名嵌入标题行
+  net_pt: 18.0             # 净含量
+
+# --- 自适应字号范围 (pt) ---
+adaptive_range:
+  body_min_pt: 4.0
+  body_max_pt: 12.0
+  ingr_min_pt: 4.0
+  ingr_max_pt: 12.0
+
+# --- Logo 配置 ---
+logo:
+  enabled: false
+
+# --- 营养表配置 ---
+nutrition:
+  right_col_ratio: 0.50
+  col_gap_pt: 4
+  row_height_mm: 2.5
+  font_padding_pt: 2
+  format: canada_bilingual
+  position: right_full     # 右侧全高

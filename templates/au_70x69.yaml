@@ -1,0 +1,46 @@
+# 澳洲小标签 (70×69mm) — L形布局
+template_id: au_70x69
+display_name: "澳洲小标签 (70×69mm)"
+target_country: AU
+
+# --- 标签物理尺寸 ---
+label_size:
+  width_mm: 70
+  height_mm: 69
+  margin_mm: 2.0
+
+# --- 布局类型 ---
+layout:
+  type: l_shape           # l_shape | dual_column | stacked
+  bilingual: false
+  bilingual_lang: ""
+  ingr_box_border: false
+
+# --- 固定字号 (pt) ---
+fixed_sizes:
+  title_pt: 8.0           # 英文品名
+  cn_pt: 9.8              # 中文品名
+  net_pt: 21.0            # Net Volume
+
+# --- 自适应字号范围 (pt) ---
+adaptive_range:
+  body_min_pt: 4.0
+  body_max_pt: 16.0
+  ingr_min_pt: 4.0
+  ingr_max_pt: 14.0
+
+# --- Logo 配置 ---
+logo:
+  enabled: true
+  width_pt: 40
+  height_mm: 5.4
+  padding_pt: 2
+
+# --- 营养表配置 ---
+nutrition:
+  right_col_ratio: 0.62   # 营养表占标签宽度比例
+  col_gap_pt: 4
+  row_height_mm: 2.8
+  font_padding_pt: 2
+  format: australia        # australia | canada_bilingual
+  position: bottom_right   # bottom_right | right_full | bottom_full

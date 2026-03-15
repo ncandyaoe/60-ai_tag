@@ -1,0 +1,43 @@
+# 澳洲竖版标签 (40×84mm) — L形布局
+template_id: au_40x84
+display_name: "澳洲竖版标签 (40×84mm)"
+target_country: AU
+
+# --- 标签物理尺寸 ---
+label_size:
+  width_mm: 40
+  height_mm: 84
+  margin_mm: 1.5
+
+# --- 布局类型 ---
+layout:
+  type: l_shape            # 与 AU 70×69 相同的布局逻辑
+  bilingual: false
+  bilingual_lang: ""
+  ingr_box_border: false
+
+# --- 固定字号 (pt) ---
+fixed_sizes:
+  title_pt: 6.5            # 窄标签品名较小
+  cn_pt: 7.5               # 中文品名
+  net_pt: 14.0             # 净含量（标签窄，字号小）
+
+# --- 自适应字号范围 (pt) ---
+adaptive_range:
+  body_min_pt: 4.0
+  body_max_pt: 10.0        # 窄标签上限较低
+  ingr_min_pt: 4.0
+  ingr_max_pt: 9.0
+
+# --- Logo 配置 ---
+logo:
+  enabled: false           # 竖版无 logo
+
+# --- 营养表配置 ---
+nutrition:
+  right_col_ratio: 1.0     # 全宽（营养表在底部）
+  col_gap_pt: 0
+  row_height_mm: 2.5
+  font_padding_pt: 2
+  format: australia
+  position: bottom_full    # 底部全宽
