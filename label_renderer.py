@@ -129,7 +129,7 @@ _FIXED_NET   = 21                                # Net Volume 固定 21pt
 _FIXED_NUT_ROW_H = 2.8 * mm                     # 营养表行高 2.8mm → 7.94pt（直接物理尺寸）
 _FIXED_NUT   = _FIXED_NUT_ROW_H - 2             # 营养表字号 = 行高 - 2pt padding → 5.94pt
 
-_SIZE_MAX = {"title": _FIXED_TITLE, "cn": _FIXED_CN, "body": 16, "ingr": 14, "nut": _FIXED_NUT, "net": _FIXED_NET}
+_SIZE_MAX = {"title": _FIXED_TITLE, "cn": _FIXED_CN, "body": 16, "ingr": 16, "nut": _FIXED_NUT, "net": _FIXED_NET}
 _SIZE_MIN = {"title": _FIXED_TITLE, "cn": _FIXED_CN, "body": 4,  "ingr": 4,  "nut": _FIXED_NUT, "net": _FIXED_NET}
 
 
@@ -201,10 +201,16 @@ def _count_text_lines(text: str, font_name: str, font_size: float,
 def _count_text_lines_lshape(text: str, font_name: str, font_size: float,
                               full_width: float, narrow_width: float,
                               cursor: float, nut_boundary: float,
-                              leading: float, bold_prefix: str = "") -> Tuple[int, float]:
+                              leading: float, bold_prefix: str = "",
+                              logo_boundary: float = 0,
+                              logo_reserve_w: float = 0) -> Tuple[int, float]:
     """估算 L 形区域中文本行数，逐行追踪 cursor 位置切换宽度。
 
-    当 cursor < nut_boundary 时使用 full_width，否则使用 narrow_width。
+    三段式宽度模型（与渲染器 _draw_wrapped_text._line_width 对称）：
+    - cursor < logo_boundary 时：full_width - logo_reserve_w（Logo 避让）
+    - logo_boundary <= cursor < nut_boundary 时：full_width（全宽）
+    - cursor >= nut_boundary 时：narrow_width（营养表避让）
+
     每输出一行，cursor 下移 leading。
 
     Returns:
@@ -214,7 +220,12 @@ def _count_text_lines_lshape(text: str, font_name: str, font_size: float,
         return 0, cursor
 
     def _avail_at(cur):
-        return narrow_width if cur >= nut_boundary else full_width
+        if cur >= nut_boundary:
+            return narrow_width
+        w = full_width
+        if logo_reserve_w > 0 and cur < logo_boundary:
+            w -= logo_reserve_w
+        return w
 
     avail_first = _avail_at(cursor)
     if bold_prefix:
@@ -366,7 +377,6 @@ def _collect_block_heights(data: dict, sizes: dict, content_w: float,
 
 def _estimate_content_height(data: dict, sizes: dict, content_w: float,
                              left_col_w: float,
-                             unified_gap: float = 1.0,
                              available_h: float = 0) -> Tuple[float, int]:
     """
     估算全部内容所需的总高度 (pt)。
@@ -403,9 +413,10 @@ def _estimate_content_height(data: dict, sizes: dict, content_w: float,
 
     # 营养表顶部到标签顶部的距离（从顶部往下数，到哪里开始变窄）
     # nut_top_y 从底部算起 = nut_h；从顶部算起 = available_h - nut_h
-    nut_boundary = available_h - nut_h if available_h > 0 else 999  # 如果没传 available_h，不做修正
+    nut_boundary = (available_h - nut_h - body_leading) if available_h > 0 else 999  # 缓冲区：提前一行开始缩窄，避免全宽文字与营养表标题重叠
 
     # ----- 逐块追踪累计高度，精确计算行数 -----
+    block_gap = 0  # 无额外块间距：_draw_wrapped_text 尾部 leading 已提供 0.15×字号 的统一行距
     cursor = h  # 从 A 区域底部开始
     block_heights = []
 
@@ -416,44 +427,52 @@ def _estimate_content_height(data: dict, sizes: dict, content_w: float,
     if data.get("product_name_cn"):
         a_h_for_logo += sizes["cn"] * 1.15 + a_gap
     logo_remaining_h = max(0, logo_zone_h - (a_h_for_logo - sizes["title"] * 0.8))
-    narrow_w_logo = eff_w - logo_reserve
+    logo_boundary = cursor + logo_remaining_h  # Logo 避让区域的绝对 cursor 边界
 
-    # B 块 —— 全宽（logo 避让区域内除外）
+    # B+C 块 —— 统一 L 形估算（Logo + 营养表三段式避让）
     # Ingredients
     ingr = data.get("ingredients", "")
     if ingr:
-        narrow_lines_ingr = int(logo_remaining_h / ingr_leading) + 1 if logo_remaining_h > 0 else 0
-        n = _count_text_lines(ingr, _FONT_NAME, sizes["ingr"], eff_w, "Ingredients: ",
-                             narrow_width=narrow_w_logo, narrow_lines=narrow_lines_ingr)
+        n, cursor = _count_text_lines_lshape(
+            ingr, _FONT_NAME, sizes["ingr"],
+            full_width=eff_w, narrow_width=eff_nut_narrow,
+            cursor=cursor, nut_boundary=nut_boundary,
+            leading=ingr_leading, bold_prefix="Ingredients: ",
+            logo_boundary=logo_boundary, logo_reserve_w=logo_reserve
+        )
         bh = n * ingr_leading
         block_heights.append(bh)
-        cursor += bh + unified_gap
-        logo_remaining_h = max(0, logo_remaining_h - bh)
+        cursor += block_gap
 
     # Contains
     allergens = data.get("allergens", "")
     if allergens:
-        narrow_lines_allerg = int(logo_remaining_h / body_leading) + 1 if logo_remaining_h > 0 else 0
-        n = _count_text_lines(allergens, _FONT_NAME, sizes["body"], eff_w, "Contains: ",
-                             narrow_width=narrow_w_logo, narrow_lines=narrow_lines_allerg)
+        n, cursor = _count_text_lines_lshape(
+            allergens, _FONT_NAME, sizes["body"],
+            full_width=eff_w, narrow_width=eff_nut_narrow,
+            cursor=cursor, nut_boundary=nut_boundary,
+            leading=body_leading, bold_prefix="Contains: ",
+            logo_boundary=logo_boundary, logo_reserve_w=logo_reserve
+        )
         bh = n * body_leading
         block_heights.append(bh)
-        cursor += bh + unified_gap
+        cursor += block_gap
 
-    # Storage（可能进入营养表避让区域，使用 L 形估算）
+    # Storage
     storage = data.get("storage", "")
     if storage:
         n, cursor = _count_text_lines_lshape(
             storage, _FONT_NAME, sizes["body"],
             full_width=eff_w, narrow_width=eff_nut_narrow,
             cursor=cursor, nut_boundary=nut_boundary,
-            leading=body_leading
+            leading=body_leading,
+            logo_boundary=logo_boundary, logo_reserve_w=logo_reserve
         )
         bh = n * body_leading
         block_heights.append(bh)
-        cursor += unified_gap
+        cursor += block_gap
 
-    # Date（可能进入营养表避让区域，使用 L 形估算）
+    # Date
     prod_date = data.get("production_date", "")
     best_before = data.get("best_before", "")
     if prod_date or best_before:
@@ -465,16 +484,17 @@ def _estimate_content_height(data: dict, sizes: dict, content_w: float,
             date_text, _FONT_NAME_BOLD, sizes["body"],
             full_width=eff_w, narrow_width=eff_nut_narrow,
             cursor=cursor, nut_boundary=nut_boundary,
-            leading=body_leading
+            leading=body_leading,
+            logo_boundary=logo_boundary, logo_reserve_w=logo_reserve
         )
         bh = n * body_leading
         block_heights.append(bh)
-        cursor += unified_gap
+        cursor += block_gap
 
     # Product of
     bh = body_leading
     block_heights.append(bh)
-    cursor += bh + unified_gap
+    cursor += bh + block_gap
 
     # C 块 —— 逐行追踪 cursor，L 形区域内混合全宽/窄宽
     c_fields = [("manufacturer", "Manufacturer: "),
@@ -491,13 +511,13 @@ def _estimate_content_height(data: dict, sizes: dict, content_w: float,
             )
             bh = n * body_leading
             block_heights.append(bh)
-            cursor += unified_gap  # cursor 已被 _count_text_lines_lshape 更新
+            cursor += block_gap  # cursor 已被 _count_text_lines_lshape 更新
 
     n_blocks = len(block_heights)
     content_h = sum(block_heights)
 
     # 总高度 = A + 所有文本块 + 每块后一个间距 + Net Volume 预留
-    total_h = h + content_h + unified_gap * n_blocks + net_reserve
+    total_h = h + content_h + block_gap * n_blocks + net_reserve
 
     return total_h, n_blocks
 
@@ -639,37 +659,9 @@ def _calc_font_sizes(data: dict, country_cfg: Optional[dict] = None) -> Tuple[di
             h_scale = best_hs
 
     # --------------------------------------------------
-    # 统一间距计算
+    # 统一间距 = body_leading（字号 × 1.15，与行内间距一致）
     # --------------------------------------------------
-    # 用最终的 h_scale 估算高度
-    if h_scale < 1.0:
-        eff_w = _effective_width(content_w, h_scale)
-        eff_left = _effective_width(left_col_w, h_scale)
-        est_h, n_blocks = _estimate_content_height(data, sizes, eff_w, eff_left, available_h=available_h)
-    else:
-        est_h, n_blocks = _estimate_content_height(data, sizes, content_w, left_col_w, available_h=available_h)
-
-    # A 区域固定高度（与 _estimate_content_height 保持一致）
-    a_h = sizes["title"] * 0.8
-    if data.get("product_name_cn"):
-        a_h += sizes["title"] * 1.15 + 1  # en name
-        a_h += sizes["cn"] * 1.0 + 1      # cn name (最后，leading 缩减)
-    else:
-        a_h += sizes["title"] * 1.0 + 1   # en name (最后)
-
-    # Net Volume 预留
-    net_reserve = (_FIXED_NET * _CAP_H_RATIO) if data.get("net_weight") else 0
-
-    # 从 est_h 反推 content_h = est_h - a_h - n_blocks * 1.0 (binary search gap) - net_reserve
-    content_h = est_h - a_h - n_blocks * 1.0 - net_reserve
-
-    # 剩余空间均匀分配为间距
-    base_h = a_h + content_h + net_reserve
-    unified_gap = (available_h - base_h) / max(n_blocks, 1)
-
-    # 限制范围：最小 1pt，最大不超过 3pt（保持紧凑布局，避免大块空白）
-    max_gap = 3.0
-    unified_gap = max(1.0, min(unified_gap, max_gap))
+    unified_gap = 0  # 无额外块间距（_draw_wrapped_text 尾部 leading 已提供统一行距）
 
     return sizes, h_scale, unified_gap
 
@@ -1103,7 +1095,7 @@ def generate_label_pdf(data: dict, country_cfg: Optional[dict] = None) -> bytes:
     body_leading = sizes["body"] * 1.15
 
     nut_total_h = _calc_nutrition_height(data, sizes)
-    nut_top_y = bottom + nut_total_h  # 营养表顶部 y 坐标
+    nut_top_y = bottom + nut_total_h + body_leading  # 缓冲区：提前一行开始缩窄（与估算器对称）
     nut_reserve = _effective_width(right_col_w, h_scale)  # 营养表避让宽度
 
     # 在 L 形正文区域开始前设置横向压缩
@@ -1186,59 +1178,12 @@ def generate_label_pdf(data: dict, country_cfg: Optional[dict] = None) -> bytes:
     # 营养表边界（已在 B 区域前计算 nut_top_y, nut_reserve, right_col_x, actual_right_w 等）
 
     # ------------------------------------------------------------------
-    # C 左栏间距计算
+    # C 左栏间距 = body_leading（与 B 区域和行内间距统一）
     # ------------------------------------------------------------------
-    eff_w = _effective_width(content_w, h_scale)
-    eff_nut_narrow = eff_w - nut_reserve
-
-    # 从顶部坐标换算 cursor（估算坐标系：从顶部往下，0=标签顶部内边距）
-    # y 是 PDF 坐标（底部原点），cursor 是从顶部往下的距离
-    cursor_c = (LABEL_H - MARGIN) - y  # 当前已用高度
-    nut_boundary_c = (LABEL_H - 2 * MARGIN) - nut_total_h  # nut_boundary 从顶部算
-
-    c_block_heights = []
-    # Product of
-    c_block_heights.append(body_leading)
-    cursor_c += body_leading
-    # Manufacturer
+    c_left_gap = 0  # 无额外块间距（与 B 区域统一）
     mfr = data.get("manufacturer", "")
-    if mfr:
-        n, cursor_c = _count_text_lines_lshape(
-            mfr, _FONT_NAME, sizes["body"],
-            full_width=eff_w, narrow_width=eff_nut_narrow,
-            cursor=cursor_c, nut_boundary=nut_boundary_c,
-            leading=body_leading, bold_prefix="Manufacturer: "
-        )
-        c_block_heights.append(n * body_leading)
-    # Address
     addr = data.get("manufacturer_address", "")
-    if addr:
-        n, cursor_c = _count_text_lines_lshape(
-            addr, _FONT_NAME, sizes["body"],
-            full_width=eff_w, narrow_width=eff_nut_narrow,
-            cursor=cursor_c, nut_boundary=nut_boundary_c,
-            leading=body_leading, bold_prefix="Address: "
-        )
-        c_block_heights.append(n * body_leading)
-    # Imported by
     imp = data.get("importer_info", "")
-    if imp:
-        n, cursor_c = _count_text_lines_lshape(
-            imp, _FONT_NAME, sizes["body"],
-            full_width=eff_w, narrow_width=eff_nut_narrow,
-            cursor=cursor_c, nut_boundary=nut_boundary_c,
-            leading=body_leading, bold_prefix="Imported by:"
-        )
-        c_block_heights.append(n * body_leading)
-
-    c_content_h = sum(c_block_heights)
-    n_c_gaps = len(c_block_heights)  # 间隔数 = 块数（每个块后面一个间隔，最后一个间隔在 Net Volume 前）
-
-    # C 区域可用高度 = 当前 y 到 Net Volume baseline (bottom) 的距离 - Net Volume cap height
-    c_available = y - bottom - net_reserve
-    c_left_gap = max(1.0, (c_available - c_content_h) / max(n_c_gaps, 1))
-    # 上限：不超过 body leading 的 1.5 倍，防止过于稀疏
-    c_left_gap = min(c_left_gap, body_leading * 1.5)
 
     # ------------------------------------------------------------------
     # 开始绘制 C 左栏
