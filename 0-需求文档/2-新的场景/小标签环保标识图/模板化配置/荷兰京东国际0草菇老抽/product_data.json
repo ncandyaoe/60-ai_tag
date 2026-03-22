@@ -1,0 +1,27 @@
+{
+  "product_name_en": "【EN】0 MUSHROOM DARK SOY SAUCE / 【NL】0 CHAMPIGNON DONKERE SOJASAUS / 【ES】0 SALSA DE SOYA OSCURA DE SETA DE PAJA / 【DE】0 SOJASAUCE MIT PILZGESCHMACK / 【FR】0 SAUCE DE SOJA AU CHAMPIGNON\n\n0草菇老抽",
+  "product_name_cn": "",
+  "net_weight": "500 mL",
+  "ingredients": "[EN] Ingredients: Water, Soybeans (23%), Sugar, Salt, Wheat(Gluten)(11%), Mushroom Extract(0.002%). / [NL] Ingrediënten: Water, Sojabonen (23%), Suiker, Zout, Tarwe(Gluten)(11%), Paddenstoelenextract (0.002%). / [ES]Ingredientes: Agua, Soja (23%), Azúcar, Sal, Trigo(Gluten)(11%), Jugo de Seta de Paja(0.002%).\n[DE] Zutaten: Wasser, Sojabohnen (23%), Zucker, Salz, Weizen(Gluten)(11%), Hefeextrakt (0.002%). / [FR] Ingrédients: Eau, Soja (23%), Sucre, Sel, Blé(Gluten)(11%), Extrait de Champignon (0.002%).",
+  "storage": "Store in a cool, dry place. Please keep in refrigerator after opening and consume as soon as possible. / Bewaren op een koele, droge plaats. Na opening in de koelkast bewaren en zo snel mogelijk consumeren. / Conservar en un lugar fresco y seco. Conservar en el frigorífico una vez abierto y consumir lo antes posible. / Kühl und trocken lagern. Nach dem Öffnen bitte im Kühlschrank aufbewahren und schnellstmöglich verbrauchen. / Conserver dans un endroit frais et sec. Veuillez conserver au réfrigérateur après ouverture et consommer dès que possible.",
+  "usage": "Good for dipping, cold-mixing, stir-frying and braising for coloring. / Goed voor onderdompelen, koud mengen, roerbakken en te smoren voor kleur. / Servir para mojar, mezclar en frío, saltear y estofar para dar color. / Gut zum Dippen, Kaltmischen, Braten und Schmoren zum Färben. / Bon pour tremper, mélanger à froid, faire sauter et les plats mijotés pour ajouter de la couleur.",
+  "best_before": "Best before / Ten minste houdbaar tot / Consumir preferentemente antes del / Mindestens haltbar bis / Á consommer de préférence avant le: See the package / Zie verpakking / Ver envase / Siehe verpackung / Voir emballage (DD/MM/YYYY).",
+  "product_of": "Product of China / Product uit China / Producto de China / Produkt aus China / Produit de Chine",
+  "importer_info": "Importer/Importeur/Importador/Importeur/Importateur: JINGDONG RETAIL (NETHERLANDS) B.V.",
+  "importer_address": "Da Vincistraat 5, 2652XE, Berkel en Rodenrijs, The Netherlands",
+  "brand_logo": "",
+  "nutrition": {
+    "serving_size": "100mL",
+    "table_data": [
+      {"name": "Energy / Energie / Valor energético / Energie / Énergie", "per_serving": "706 kJ / 167 kcal"},
+      {"name": "Fat / Vetten / Grasas / Fett / Matières grasses", "per_serving": "0 g"},
+      {"name": "  of which / waarvan / de las cuales / davon / dont", "per_serving": "", "is_sub": true},
+      {"name": "  -Saturates / Verzadigde vetzuren / Saturadas / gesättigte Fettsäuren / Acides gras saturés", "per_serving": "0 g", "is_sub": true},
+      {"name": "Carbohydrate / Koolhydraten / Hidratos de carbono / Kohlenhydrate / Glucides", "per_serving": "32 g"},
+      {"name": "  of which / waarvan / de los cuales / davon / dont", "per_serving": "", "is_sub": true},
+      {"name": "  -Sugars / Suikers / Azúcares / Zucker / Sucres", "per_serving": "7.1 g", "is_sub": true},
+      {"name": "Protein / Eiwitten / Proteínas / Eiweiß / Protéines", "per_serving": "11 g"},
+      {"name": "Salt / Zout / Sal / Salz / Sel", "per_serving": "18.8 g"}
+    ]
+  }
+}

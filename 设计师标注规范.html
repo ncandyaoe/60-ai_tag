@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>标签模板区域标注规范</title>
+<style>
+  @page { size: A4; margin: 18mm; }
+  @media print { body { -webkit-print-color-adjust: exact; print-color-adjust: exact; } }
+  body {
+    font-family: "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans CJK SC", sans-serif;
+    font-size: 11pt; line-height: 1.7; color: #333; max-width: 700px; margin: 0 auto; padding: 20px;
+  }
+  h1 {
+    font-size: 22pt; color: #1a1a2e; text-align: center;
+    border-bottom: 3px solid #e63946; padding-bottom: 10px; margin-bottom: 24px;
+  }
+  h2 {
+    font-size: 15pt; color: #1d3557; margin-top: 28px;
+    border-left: 4px solid #e63946; padding-left: 10px;
+  }
+  h3 { font-size: 12pt; color: #457b9d; margin-top: 18px; }
+  table { border-collapse: collapse; width: 100%; margin: 14px 0; }
+  th, td { border: 1px solid #bbb; padding: 8px 12px; text-align: left; vertical-align: middle; }
+  th { background: #f1faee; font-weight: bold; color: #1d3557; }
+  tr:nth-child(even) { background: #fafafa; }
+  .color-cell { text-align: center; font-size: 14pt; }
+  code { background: #f0f0f0; padding: 2px 6px; border-radius: 3px; font-size: 10pt; font-family: monospace; }
+  blockquote {
+    border-left: 4px solid #a8dadc; margin: 14px 0; padding: 10px 16px;
+    background: #f8f9fa; color: #555; border-radius: 0 6px 6px 0;
+  }
+  hr { border: none; border-top: 1px solid #ddd; margin: 24px 0; }
+  .example-img { text-align: center; margin: 20px 0; }
+  .example-img img { max-width: 50%; border: 1px solid #ddd; border-radius: 6px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+  .example-img p { font-size: 9pt; color: #888; margin-top: 6px; }
+  ul, ol { padding-left: 24px; }
+  li { margin: 5px 0; }
+  .note { background: #fff3cd; border: 1px solid #ffc107; padding: 10px 14px; border-radius: 6px; margin: 14px 0; }
+  .note::before { content: "⚠️ "; }
+  .step-num { display: inline-block; background: #e63946; color: white; width: 22px; height: 22px; text-align: center; border-radius: 50%; font-size: 10pt; line-height: 22px; margin-right: 6px; }
+</style>
+</head>
+<body>
+
+<h1>标签模板区域标注规范</h1>
+
+<h2>目的</h2>
+<p>为实现标签内容的<strong>自动化排版</strong>，需要设计师在每个标签模板的 <code>.ai</code> 源文件中，用<strong>彩色矩形</strong>标注各功能区域的位置。程序将自动读取这些矩形的坐标，生成排版配置文件。</p>
+
+<hr>
+
+<h2>操作步骤</h2>
+<ol>
+  <li>在 Illustrator 中打开标签模板 <code>.ai</code> 文件</li>
+  <li><strong>新建一个图层</strong>，命名为 <code>区域标注</code>（便于后续隐藏/删除）</li>
+  <li>在该图层上，用 <strong>矩形工具 (M)</strong> 画出每个功能区域的边界</li>
+  <li>为每个矩形设置对应的 <strong>填充色</strong>（见下方颜色表）</li>
+  <li>填充设置 <strong>不透明度 50%</strong> 以便能看到底层内容</li>
+  <li><strong>无描边</strong>（Stroke: None）</li>
+  <li>保存 <code>.ai</code> 文件</li>
+</ol>
+
+<div class="note">
+  矩形必须使用<strong>纯填充色</strong>，不要用渐变或图案。每种颜色只能用<strong>一次</strong>。矩形之间<strong>不要重叠</strong>。四周需预留 <strong>2mm 出血位</strong>。
+</div>
+
+<hr>
+
+<h2>颜色对照表</h2>
+<table>
+  <thead>
+    <tr><th>颜色</th><th>RGB 值</th><th>区域名称</th><th>说明</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td class="color-cell" style="background:rgba(255,0,0,0.15);">🔴 红色</td>
+      <td><code>R:255 G:0 B:0</code></td>
+      <td><strong>title</strong> 标题</td>
+      <td>产品名称区域</td>
+    </tr>
+    <tr>
+      <td class="color-cell" style="background:rgba(0,0,255,0.15);">🔵 蓝色</td>
+      <td><code>R:0 G:0 B:255</code></td>
+      <td><strong>content</strong> 正文</td>
+      <td>配料表、储存条件、产地、进口商等文字</td>
+    </tr>
+    <tr>
+      <td class="color-cell" style="background:rgba(0,180,0,0.15);">🟢 绿色</td>
+      <td><code>R:0 G:180 B:0</code></td>
+      <td><strong>net_volume</strong> 净含量</td>
+      <td>净含量数字区域（如 500mL、2.27kg）</td>
+    </tr>
+    <tr>
+      <td class="color-cell" style="background:rgba(180,0,180,0.15);">🟣 紫色</td>
+      <td><code>R:180 G:0 B:180</code></td>
+      <td><strong>nutrition</strong> 营养表</td>
+      <td>营养成分表区域</td>
+    </tr>
+    <tr>
+      <td class="color-cell" style="background:rgba(255,255,0,0.2);">🟡 黄色</td>
+      <td><code>R:255 G:255 B:0</code></td>
+      <td><strong>logo</strong> 商标</td>
+      <td>品牌 Logo / 商标图片区域</td>
+    </tr>
+    <tr>
+      <td class="color-cell" style="background:rgba(0,180,180,0.15);">🔹 青色</td>
+      <td><code>R:0 G:180 B:180</code></td>
+      <td><strong>eco_icons</strong> 环保标识</td>
+      <td>回收标识、环保认证图标区域</td>
+    </tr>
+  </tbody>
+</table>
+
+<blockquote>
+  <strong>提示</strong>：颜色不需要完全精确，程序会自动识别最接近的标准色。只要颜色大方向对即可（红就是红，蓝就是蓝）。
+</blockquote>
+
+<hr>
+
+<h2>标注示意图</h2>
+<div class="example-img">
+  <img src="designer_guide_example.png" alt="标注示意图">
+  <p>50×120mm 小标签标注示例</p>
+</div>
+
+<hr>
+
+<h2>常见布局类型</h2>
+
+<h3>类型 A：单栏竖版（如 50×120mm 小标签）</h3>
+<p>从上到下依次标注：</p>
+<ul>
+  <li>🔴 <strong>title</strong>（顶部，右上角可留给 🟡 logo）</li>
+  <li>🔵 <strong>content</strong>（中部大面积文字区）</li>
+  <li>🟢 <strong>net_volume</strong>（右侧小块）</li>
+  <li>🟣 <strong>nutrition</strong>（下部营养表区域）</li>
+  <li>🔹 <strong>eco_icons</strong>（底部环保图标）</li>
+</ul>
+
+<h3>类型 B：双栏横版（如 80×70mm 背标）</h3>
+<p>左右分栏标注：</p>
+<ul>
+  <li>🔴 <strong>title</strong>（顶部，仅覆盖左半栏标题文字）</li>
+  <li>🔵 <strong>content</strong>（左栏文字区域）</li>
+  <li>🟢 <strong>net_volume</strong>（右上角净含量）</li>
+  <li>🟣 <strong>nutrition</strong>（右栏，覆盖营养表及底部附注文字）</li>
+</ul>
+
+<hr>
+
+<h2>不需要标注的区域</h2>
+<p>以下区域<strong>无需标注</strong>，程序会自动处理：</p>
+<ul>
+  <li>页面边框 / 出血线 / 裁切线</li>
+  <li>背景色</li>
+  <li>条形码（如有需要后续扩展）</li>
+</ul>
+
+<hr>
+
+<h2>交付要求</h2>
+<p>请将标注完成的 <code>.ai</code> 文件直接交付即可。程序运行后会自动生成：</p>
+<ol>
+  <li><code>.yaml</code> 配置文件（区域坐标数据）</li>
+  <li><code>_zones.png</code> 预览图（可用于校验标注是否正确）</li>
+</ol>
+<p>如有疑问请联系开发团队。</p>
+
+</body>
+</html>

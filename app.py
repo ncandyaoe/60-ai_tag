@@ -1,7 +1,11 @@
 import json
 import os
+import io
+import tempfile
+import base64
 
 import streamlit as st
+import fitz  # PyMuPDF
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 
 from country_config import (
@@ -12,6 +16,7 @@ from country_config import (
 )
 from label_renderer import generate_label_preview_html, generate_label_pdf
 from template_config import list_templates, get_template
+from generate_from_zones import generate_pdf_from_zones, BLEED_MM
 
 # ==========================================
 # Jinja2 模板环境：加载 templates/ 目录下的模板
@@ -241,7 +246,7 @@ PLM_EXAMPLES["场景3 - 荷兰草菇老抽 (京东国际 50×120mm)"] = PLM_EXAM
 # --------------------------------------------------
 # UI
 # --------------------------------------------------
-st.title("🏷️ 小标签生成系统 · PLM 直连版 (3×3 方形标签)")
+st.title("🏷️ 小标签生成系统 · PLM 直连版")
 
 col1, col2 = st.columns([1, 1])
 
@@ -276,6 +281,15 @@ with col1:
     )
     selected_tpl_id = tpl_ids[tpl_names.index(selected_tpl_name)]
 
+    # --- .ai 设计师标注模板上传 ---
+    st.divider()
+    st.subheader("📐 设计师标注模板（可选）")
+    ai_file = st.file_uploader(
+        "上传 .ai 设计师标注模板，自动提取区域坐标和样式",
+        type=["ai"],
+        help="设计师用彩色矩形标注的 AI 文件，系统将自动解析 zone 坐标、字号、行高、列宽等样式信息。"
+    )
+
     # JSON 编辑器
     json_input = st.text_area(
         "PLM JSON 数据（可直接粘贴或编辑）",
@@ -290,42 +304,83 @@ with col1:
             st.session_state['label_data'] = structured_data
             st.session_state['country_code'] = selected_country_code
             st.session_state['template_id'] = selected_tpl_id
+
+            # 如果上传了 .ai 文件，解析 zone 配置
+            if ai_file is not None:
+                with tempfile.NamedTemporaryFile(suffix='.ai', delete=False) as tmp:
+                    tmp.write(ai_file.getvalue())
+                    tmp_path = tmp.name
+
+                try:
+                    from ai_parser_annotated import (
+                        scan_annotations, build_zones_from_annotations,
+                        extract_zone_styles
+                    )
+                    annotations, pw_mm, ph_mm = scan_annotations(tmp_path, verbose=False)
+                    matched = [a for a in annotations if a['zone_id']]
+                    zones_list = build_zones_from_annotations(matched, pw_mm, ph_mm)
+                    extract_zone_styles(tmp_path, zones_list, pw_mm, ph_mm)
+                    zones_config = {
+                        'label_size': {'width_mm': pw_mm, 'height_mm': ph_mm, 'margin_mm': BLEED_MM},
+                        'zones': zones_list,
+                    }
+                    st.session_state['zones_config'] = zones_config
+                    st.session_state['use_zone_renderer'] = True
+                    st.success(f"✅ .ai 模板已解析：{pw_mm:.0f}×{ph_mm:.0f}mm，{len(zones_list)} 个区域")
+                finally:
+                    os.unlink(tmp_path)
+            else:
+                st.session_state['use_zone_renderer'] = False
+
             st.success("JSON 解析成功，标签已生成！")
         except json.JSONDecodeError as e:
             st.error(f"JSON 格式错误，请检查输入：{e}")
 
 with col2:
-    st.subheader("2. 物理 PDF 合规排版 (3×3 · 76mm)")
     if 'label_data' in st.session_state:
         cc = st.session_state.get('country_code', 'DEFAULT')
         data = st.session_state['label_data']
+        use_zone = st.session_state.get('use_zone_renderer', False)
 
-        # --------------------------------------------------
-        # [改造项3] 合规校验
-        # --------------------------------------------------
-        from country_config import validate_font_compliance
-        min_font_pt = calc_min_font_size_pt(data, cc)
-        compliance = validate_font_compliance(min_font_pt, cc)
+        if use_zone and 'zones_config' in st.session_state:
+            # ==============================================
+            # Zone-Based 渲染路径（.ai 模板驱动）
+            # ==============================================
+            zones_config = st.session_state['zones_config']
+            label_size = zones_config.get('label_size', {})
+            pw_mm = label_size.get('width_mm', 50)
+            ph_mm = label_size.get('height_mm', 120)
 
-        if compliance["level"] == "fail":
-            st.error(compliance["message"])
-        elif compliance["level"] == "warn":
-            st.warning(compliance["message"])
-        else:
-            st.success(compliance["message"])
+            st.subheader(f"2. Zone-Based 排版 ({pw_mm:.0f}×{ph_mm:.0f}mm)")
 
-        # --------------------------------------------------
-        # 服务端生成 PDF + PNG 预览
-        # --------------------------------------------------
-        country_cfg = get_country_config(cc)
-        tpl_id = st.session_state.get('template_id', 'au_70x69')
-        tpl = get_template(tpl_id)
-        preview_html, pdf_bytes = generate_label_preview_html(data, country_cfg, tpl=tpl)
-        st.components.v1.html(preview_html, height=600, scrolling=True)
+            # 显示提取的 zone 信息
+            zones = zones_config.get('zones', [])
+            zone_info = " · ".join([f"{z['id']}" for z in zones])
+            st.caption(f"📐 区域: {zone_info}")
 
-        # 下载按钮
-        if compliance["level"] != "fail":
-            filename = (data.get('product_name_en', 'label').replace(' ', '_') + '_Compliance.pdf')
+            # 生成 PDF
+            pdf_bytes = generate_pdf_from_zones(zones_config, data)
+
+            # PDF → PNG 预览
+            doc = fitz.open(stream=pdf_bytes, filetype="pdf")
+            page = doc[0]
+            pix = page.get_pixmap(dpi=200)
+            png_bytes = pix.tobytes("png")
+            doc.close()
+
+            # 显示预览图
+            b64 = base64.b64encode(png_bytes).decode()
+            preview_html = f'''
+            <div style="text-align:center; background:#f8f8f8; padding:10px; border-radius:8px;">
+                <img src="data:image/png;base64,{b64}"
+                     style="max-height:700px; border:1px solid #ddd; border-radius:4px;"
+                     alt="标签预览"/>
+            </div>
+            '''
+            st.components.v1.html(preview_html, height=750, scrolling=True)
+
+            # 下载 PDF
+            filename = (data.get('product_name_en', 'label')[:30].replace(' ', '_') + '_ZoneLabel.pdf')
             st.download_button(
                 label="⬇ 下载 PDF（送厂印刷）",
                 data=pdf_bytes,
@@ -333,8 +388,50 @@ with col2:
                 mime="application/pdf",
                 type="primary",
             )
+
+            # 显示样式信息
+            with st.expander("🎨 模板提取的样式参数"):
+                for z in zones:
+                    style = z.get('style', {})
+                    if style:
+                        st.markdown(f"**{z['id']}**: `{style}`")
+
         else:
-            st.button("⬇ 下载 PDF（送厂印刷）", disabled=True, help="字高不合规，禁止下载")
+            # ==============================================
+            # 传统渲染路径（3×3 方形标签）
+            # ==============================================
+            st.subheader("2. 物理 PDF 合规排版 (3×3 · 76mm)")
+
+            # 合规校验
+            min_font_pt = calc_min_font_size_pt(data, cc)
+            compliance = validate_font_compliance(min_font_pt, cc)
+
+            if compliance["level"] == "fail":
+                st.error(compliance["message"])
+            elif compliance["level"] == "warn":
+                st.warning(compliance["message"])
+            else:
+                st.success(compliance["message"])
+
+            # 服务端生成 PDF + 预览
+            country_cfg = get_country_config(cc)
+            tpl_id = st.session_state.get('template_id', 'au_70x69')
+            tpl = get_template(tpl_id)
+            preview_html, pdf_bytes = generate_label_preview_html(data, country_cfg, tpl=tpl)
+            st.components.v1.html(preview_html, height=600, scrolling=True)
+
+            # 下载按钮
+            if compliance["level"] != "fail":
+                filename = (data.get('product_name_en', 'label').replace(' ', '_') + '_Compliance.pdf')
+                st.download_button(
+                    label="⬇ 下载 PDF（送厂印刷）",
+                    data=pdf_bytes,
+                    file_name=filename,
+                    mime="application/pdf",
+                    type="primary",
+                )
+            else:
+                st.button("⬇ 下载 PDF（送厂印刷）", disabled=True, help="字高不合规，禁止下载")
 
         with st.expander("查看当前 JSON 结构"):
             st.json(data)

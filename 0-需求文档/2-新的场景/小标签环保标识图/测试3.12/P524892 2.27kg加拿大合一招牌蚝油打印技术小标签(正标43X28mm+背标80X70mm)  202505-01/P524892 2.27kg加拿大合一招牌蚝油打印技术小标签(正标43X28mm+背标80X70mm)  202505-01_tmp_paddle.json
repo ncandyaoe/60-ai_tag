@@ -1,0 +1,1717 @@
+{
+  "logId": "6a8a4a87-0bff-416d-a949-e291810ee336",
+  "errorCode": 0,
+  "errorMsg": "Success",
+  "result": {
+    "layoutParsingResults": [
+      {
+        "prunedResult": {
+          "page_count": null,
+          "width": 945,
+          "height": 827,
+          "model_settings": {
+            "use_doc_preprocessor": false,
+            "use_layout_detection": true,
+            "use_chart_recognition": false,
+            "use_seal_recognition": false,
+            "use_ocr_for_image_block": false,
+            "format_block_content": false,
+            "merge_layout_blocks": true,
+            "markdown_ignore_labels": [
+              "number",
+              "footnote",
+              "header",
+              "header_image",
+              "footer",
+              "footer_image",
+              "aside_text"
+            ],
+            "return_layout_polygon_points": true
+          },
+          "parsing_res_list": [
+            {
+              "block_label": "header",
+              "block_content": "HADAY SIGNATURE OYSTER FLAVOURED SAUCE 海天招牌蚝油 2.27 kg\nHADAY SAUCE À SAVEUR AUX HUITRES SPÉCIALE",
+              "block_bbox": [
+                22,
+                18,
+                921,
+                98
+              ],
+              "block_id": 0,
+              "block_order": null,
+              "group_id": 0,
+              "block_polygon_points": [
+                [
+                  22.0,
+                  18.0
+                ],
+                [
+                  921.0,
+                  18.0
+                ],
+                [
+                  921.0,
+                  98.0
+                ],
+                [
+                  22.0,
+                  98.0
+                ]
+              ]
+            },
+            {
+              "block_label": "text",
+              "block_content": "Ingredients: Water, Sugar, Oyster extractives (oyster, water, salt), Salt, Monosodium glutamate, Modified corn starch, Wheat flour, Disodium 5'-ribonucleotide, Yeast extract, Citric acid.\nContains: Oyster, Wheat.\nIngrédients: Eau, Sucres, Extrait de huître (huître, eau, sel), Sel, Glutamate monosodique, Amidon de maïs modifié, Farine de blé, 5'-Ribonucleotide disodique, Extrait de levure, Acide citrique.\nContient: Huître, Blé.",
+              "block_bbox": [
+                27,
+                105,
+                484,
+                411
+              ],
+              "block_id": 1,
+              "block_order": 1,
+              "group_id": 1,
+              "block_polygon_points": [
+                [
+                  27,
+                  105
+                ],
+                [
+                  27,
+                  410
+                ],
+                [
+                  483,
+                  410
+                ],
+                [
+                  483,
+                  105
+                ]
+              ]
+            },
+            {
+              "block_label": "text",
+              "block_content": "Please keep it in cool and dry place. Tightly close lid after use and keep refrigerated.",
+              "block_bbox": [
+                20,
+                426,
+                476,
+                487
+              ],
+              "block_id": 2,
+              "block_order": 2,
+              "group_id": 2,
+              "block_polygon_points": [
+                [
+                  20.0,
+                  426.0
+                ],
+                [
+                  476.0,
+                  426.0
+                ],
+                [
+                  476.0,
+                  487.0
+                ],
+                [
+                  20.0,
+                  487.0
+                ]
+              ]
+            },
+            {
+              "block_label": "text",
+              "block_content": "Veuillez le conserver dans un endroit frais et sec. Bien fermer\nle couvercle après utilisation et conserver au réfrigérateur.",
+              "block_bbox": [
+                21,
+                485,
+                476,
+                546
+              ],
+              "block_id": 3,
+              "block_order": 3,
+              "group_id": 3,
+              "block_polygon_points": [
+                [
+                  21,
+                  490
+                ],
+                [
+                  21,
+                  545
+                ],
+                [
+                  471,
+                  545
+                ],
+                [
+                  475,
+                  537
+                ],
+                [
+                  471,
+                  485
+                ]
+              ]
+            },
+            {
+              "block_label": "text",
+              "block_content": "Product of China / Produit de Chine",
+              "block_bbox": [
+                21,
+                544,
+                292,
+                574
+              ],
+              "block_id": 4,
+              "block_order": 4,
+              "group_id": 4,
+              "block_polygon_points": [
+                [
+                  21,
+                  544
+                ],
+                [
+                  21,
+                  573
+                ],
+                [
+                  291,
+                  573
+                ],
+                [
+                  291,
+                  544
+                ]
+              ]
+            },
+            {
+              "block_label": "text",
+              "block_content": "Manufacturer/Fabricant: Foshan Haitian (Gaoming) Flavouring & Food Co., Ltd.",
+              "block_bbox": [
+                20,
+                573,
+                490,
+                632
+              ],
+              "block_id": 5,
+              "block_order": 5,
+              "group_id": 5,
+              "block_polygon_points": [
+                [
+                  20.0,
+                  573.0
+                ],
+                [
+                  490.0,
+                  573.0
+                ],
+                [
+                  490.0,
+                  632.0
+                ],
+                [
+                  20.0,
+                  632.0
+                ]
+              ]
+            },
+            {
+              "block_label": "text",
+              "block_content": "Address/Adresse: Eastern Park (No.889 Gaoming Road), Cangjiang Industrial Park, Gaoming District, Foshan, Guangdong, China",
+              "block_bbox": [
+                21,
+                631,
+                445,
+                720
+              ],
+              "block_id": 6,
+              "block_order": 6,
+              "group_id": 6,
+              "block_polygon_points": [
+                [
+                  21,
+                  631
+                ],
+                [
+                  21,
+                  719
+                ],
+                [
+                  444,
+                  715
+                ],
+                [
+                  444,
+                  631
+                ]
+              ]
+            },
+            {
+              "block_label": "text",
+              "block_content": "Best before : see the package / Meilleur avant: voir emballage\nImported by/Importé par: UNI-ONE FOOD GROUP INC.\n1520 Derwent Way, Delta B.C. Canada V3M6N7",
+              "block_bbox": [
+                20,
+                719,
+                489,
+                811
+              ],
+              "block_id": 7,
+              "block_order": 7,
+              "group_id": 7,
+              "block_polygon_points": [
+                [
+                  20.0,
+                  719.0
+                ],
+                [
+                  489.0,
+                  719.0
+                ],
+                [
+                  489.0,
+                  811.0
+                ],
+                [
+                  20.0,
+                  811.0
+                ]
+              ]
+            },
+            {
+              "block_label": "paragraph_title",
+              "block_content": "Nutrition Facts\nValeur nutritive",
+              "block_bbox": [
+                506,
+                105,
+                853,
+                201
+              ],
+              "block_id": 8,
+              "block_order": 8,
+              "group_id": 8,
+              "block_polygon_points": [
+                [
+                  506.0,
+                  105.0
+                ],
+                [
+                  853.0518798828125,
+                  109.01214599609375
+                ],
+                [
+                  852.0,
+                  200.0
+                ],
+                [
+                  504.9481201171875,
+                  195.98785400390625
+                ]
+              ]
+            },
+            {
+              "block_label": "text",
+              "block_content": "Per 1 tbsp(19 g)\npour 1 cuillère à soupe (19 g)",
+              "block_bbox": [
+                507,
+                201,
+                812,
+                264
+              ],
+              "block_id": 9,
+              "block_order": 9,
+              "group_id": 9,
+              "block_polygon_points": [
+                [
+                  507.0,
+                  201.0
+                ],
+                [
+                  812.0,
+                  201.0
+                ],
+                [
+                  812.0,
+                  264.0
+                ],
+                [
+                  507.0,
+                  264.0
+                ]
+              ]
+            },
+            {
+              "block_label": "paragraph_title",
+              "block_content": "Calories 25",
+              "block_bbox": [
+                509,
+                272,
+                691,
+                317
+              ],
+              "block_id": 10,
+              "block_order": 10,
+              "group_id": 10,
+              "block_polygon_points": [
+                [
+                  509.0,
+                  272.0
+                ],
+                [
+                  691.0,
+                  272.0
+                ],
+                [
+                  691.0,
+                  317.0
+                ],
+                [
+                  509.0,
+                  317.0
+                ]
+              ]
+            },
+            {
+              "block_label": "text",
+              "block_content": "Fat / Lipides 0 g\n% valeur quotidienne *",
+              "block_bbox": [
+                508,
+                327,
+                692,
+                372
+              ],
+              "block_id": 11,
+              "block_order": 11,
+              "group_id": 11,
+              "block_polygon_points": [
+                [
+                  508.0,
+                  327.0
+                ],
+                [
+                  692.0,
+                  327.0
+                ],
+                [
+                  692.0,
+                  372.0
+                ],
+                [
+                  508.0,
+                  372.0
+                ]
+              ]
+            },
+            {
+              "block_label": "text",
+              "block_content": "",
+              "block_bbox": [
+                709,
+                301,
+                909,
+                335
+              ],
+              "block_id": 12,
+              "block_order": 12,
+              "group_id": 11,
+              "block_polygon_points": [
+                [
+                  709.0,
+                  301.0
+                ],
+                [
+                  909.0,
+                  301.0
+                ],
+                [
+                  909.0,
+                  335.0
+                ],
+                [
+                  709.0,
+                  335.0
+                ]
+              ]
+            },
+            {
+              "block_label": "text",
+              "block_content": "Carbohydrate / Glucides 5 g\nSugars / Sucres 4 g 4 %",
+              "block_bbox": [
+                508,
+                382,
+                913,
+                453
+              ],
+              "block_id": 13,
+              "block_order": 13,
+              "group_id": 13,
+              "block_polygon_points": [
+                [
+                  508.0,
+                  382.0
+                ],
+                [
+                  913.0,
+                  382.0
+                ],
+                [
+                  913.0,
+                  453.0
+                ],
+                [
+                  508.0,
+                  453.0
+                ]
+              ]
+            },
+            {
+              "block_label": "paragraph_title",
+              "block_content": "Protein / Protéines 1 g",
+              "block_bbox": [
+                508,
+                458,
+                822,
+                498
+              ],
+              "block_id": 14,
+              "block_order": 14,
+              "group_id": 14,
+              "block_polygon_points": [
+                [
+                  508.0,
+                  458.0
+                ],
+                [
+                  822.0,
+                  458.0
+                ],
+                [
+                  822.0,
+                  498.0
+                ],
+                [
+                  508.0,
+                  498.0
+                ]
+              ]
+            },
+            {
+              "block_label": "table",
+              "block_content": "<table><tr><td colspan=\"2\">Protein / Protéines 1 g</td></tr><tr><td>Sodium 1070 mg</td><td>47 %</td></tr><tr><td>Potassium 10 mg</td><td>0 %</td></tr></table>",
+              "block_bbox": [
+                507,
+                459,
+                913,
+                590
+              ],
+              "block_id": 15,
+              "block_order": null,
+              "group_id": 15,
+              "block_polygon_points": [
+                [
+                  512,
+                  459
+                ],
+                [
+                  507,
+                  484
+                ],
+                [
+                  507,
+                  553
+                ],
+                [
+                  507,
+                  585
+                ],
+                [
+                  512,
+                  589
+                ],
+                [
+                  912,
+                  589
+                ],
+                [
+                  908,
+                  464
+                ],
+                [
+                  880,
+                  459
+                ],
+                [
+                  823,
+                  459
+                ]
+              ]
+            },
+            {
+              "block_label": "paragraph_title",
+              "block_content": "Potassium 10 mg",
+              "block_bbox": [
+                509,
+                551,
+                712,
+                589
+              ],
+              "block_id": 16,
+              "block_order": 15,
+              "group_id": 16,
+              "block_polygon_points": [
+                [
+                  509,
+                  551
+                ],
+                [
+                  509,
+                  588
+                ],
+                [
+                  711,
+                  588
+                ],
+                [
+                  711,
+                  556
+                ],
+                [
+                  707,
+                  551
+                ]
+              ]
+            },
+            {
+              "block_label": "text",
+              "block_content": "Not a significant source of saturated fat, trans fat, fibre, cholesterol, calcium or iron.",
+              "block_bbox": [
+                507,
+                599,
+                910,
+                663
+              ],
+              "block_id": 17,
+              "block_order": 16,
+              "group_id": 17,
+              "block_polygon_points": [
+                [
+                  507.0,
+                  599.0
+                ],
+                [
+                  910.0,
+                  599.0
+                ],
+                [
+                  910.0,
+                  663.0
+                ],
+                [
+                  507.0,
+                  663.0
+                ]
+              ]
+            },
+            {
+              "block_label": "text",
+              "block_content": "Source négligeable de lipides saturés, lipides\ntrans, fibres, cholestérol, calcium et fer.",
+              "block_bbox": [
+                506,
+                666,
+                908,
+                731
+              ],
+              "block_id": 18,
+              "block_order": 17,
+              "group_id": 18,
+              "block_polygon_points": [
+                [
+                  506.0,
+                  666.0
+                ],
+                [
+                  908.0,
+                  666.0
+                ],
+                [
+                  908.0,
+                  731.0
+                ],
+                [
+                  506.0,
+                  731.0
+                ]
+              ]
+            },
+            {
+              "block_label": "text",
+              "block_content": "5% or less is a little, 15% or more is a lot\n5% ou moins c'est peu, 15% ou plus c'est beaucoup",
+              "block_bbox": [
+                508,
+                738,
+                914,
+                799
+              ],
+              "block_id": 19,
+              "block_order": 18,
+              "group_id": 19,
+              "block_polygon_points": [
+                [
+                  520.8334932213182,
+                  768.9827933875296
+                ],
+                [
+                  508.0,
+                  798.0
+                ],
+                [
+                  913.0,
+                  798.0
+                ],
+                [
+                  913.0,
+                  743.0
+                ],
+                [
+                  818.0,
+                  738.0
+                ],
+                [
+                  523.0,
+                  738.0
+                ],
+                [
+                  513.0,
+                  743.0
+                ]
+              ]
+            }
+          ],
+          "layout_det_res": {
+            "boxes": [
+              {
+                "cls_id": 12,
+                "label": "header",
+                "score": 0.307197630405426,
+                "coordinate": [
+                  22,
+                  18,
+                  921,
+                  98
+                ],
+                "order": null,
+                "polygon_points": [
+                  [
+                    22.0,
+                    18.0
+                  ],
+                  [
+                    921.0,
+                    18.0
+                  ],
+                  [
+                    921.0,
+                    98.0
+                  ],
+                  [
+                    22.0,
+                    98.0
+                  ]
+                ]
+              },
+              {
+                "cls_id": 17,
+                "label": "paragraph_title",
+                "score": 0.33632636070251465,
+                "coordinate": [
+                  17,
+                  18,
+                  758,
+                  99
+                ],
+                "order": 1,
+                "polygon_points": [
+                  [
+                    757,
+                    18
+                  ],
+                  [
+                    17,
+                    23
+                  ],
+                  [
+                    17,
+                    98
+                  ],
+                  [
+                    757,
+                    94
+                  ]
+                ]
+              },
+              {
+                "cls_id": 16,
+                "label": "number",
+                "score": 0.3316178619861603,
+                "coordinate": [
+                  766,
+                  18,
+                  924,
+                  97
+                ],
+                "order": 2,
+                "polygon_points": [
+                  [
+                    766.0,
+                    18.0
+                  ],
+                  [
+                    924.0,
+                    18.0
+                  ],
+                  [
+                    924.0,
+                    97.0
+                  ],
+                  [
+                    766.0,
+                    97.0
+                  ]
+                ]
+              },
+              {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.5497423410415649,
+                "coordinate": [
+                  27,
+                  103,
+                  486,
+                  225
+                ],
+                "order": 3,
+                "polygon_points": [
+                  [
+                    27.0,
+                    103.0
+                  ],
+                  [
+                    486.0,
+                    103.0
+                  ],
+                  [
+                    486.0,
+                    225.0
+                  ],
+                  [
+                    27.0,
+                    225.0
+                  ]
+                ]
+              },
+              {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.3054220974445343,
+                "coordinate": [
+                  27,
+                  105,
+                  484,
+                  411
+                ],
+                "order": 4,
+                "polygon_points": [
+                  [
+                    27,
+                    105
+                  ],
+                  [
+                    27,
+                    410
+                  ],
+                  [
+                    483,
+                    410
+                  ],
+                  [
+                    483,
+                    105
+                  ]
+                ]
+              },
+              {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.3538309931755066,
+                "coordinate": [
+                  29,
+                  225,
+                  247,
+                  256
+                ],
+                "order": 5,
+                "polygon_points": [
+                  [
+                    29,
+                    229
+                  ],
+                  [
+                    29,
+                    255
+                  ],
+                  [
+                    246,
+                    255
+                  ],
+                  [
+                    246,
+                    229
+                  ],
+                  [
+                    242,
+                    225
+                  ],
+                  [
+                    58,
+                    225
+                  ],
+                  [
+                    47,
+                    225
+                  ],
+                  [
+                    34,
+                    225
+                  ]
+                ]
+              },
+              {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.6057481169700623,
+                "coordinate": [
+                  28,
+                  255,
+                  478,
+                  411
+                ],
+                "order": 6,
+                "polygon_points": [
+                  [
+                    28.0,
+                    255.0
+                  ],
+                  [
+                    478.0,
+                    255.0
+                  ],
+                  [
+                    478.0,
+                    411.0
+                  ],
+                  [
+                    28.0,
+                    411.0
+                  ]
+                ]
+              },
+              {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.32386696338653564,
+                "coordinate": [
+                  29,
+                  377,
+                  214,
+                  411
+                ],
+                "order": 7,
+                "polygon_points": [
+                  [
+                    29,
+                    382
+                  ],
+                  [
+                    29,
+                    410
+                  ],
+                  [
+                    213,
+                    410
+                  ],
+                  [
+                    213,
+                    377
+                  ],
+                  [
+                    96,
+                    377
+                  ],
+                  [
+                    90,
+                    377
+                  ],
+                  [
+                    63,
+                    377
+                  ]
+                ]
+              },
+              {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.4785535931587219,
+                "coordinate": [
+                  20,
+                  426,
+                  476,
+                  487
+                ],
+                "order": 8,
+                "polygon_points": [
+                  [
+                    20.0,
+                    426.0
+                  ],
+                  [
+                    476.0,
+                    426.0
+                  ],
+                  [
+                    476.0,
+                    487.0
+                  ],
+                  [
+                    20.0,
+                    487.0
+                  ]
+                ]
+              },
+              {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.4420185983181,
+                "coordinate": [
+                  21,
+                  485,
+                  476,
+                  546
+                ],
+                "order": 9,
+                "polygon_points": [
+                  [
+                    21,
+                    490
+                  ],
+                  [
+                    21,
+                    545
+                  ],
+                  [
+                    471,
+                    545
+                  ],
+                  [
+                    475,
+                    537
+                  ],
+                  [
+                    471,
+                    485
+                  ]
+                ]
+              },
+              {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.3025987446308136,
+                "coordinate": [
+                  21,
+                  544,
+                  292,
+                  574
+                ],
+                "order": 10,
+                "polygon_points": [
+                  [
+                    21,
+                    544
+                  ],
+                  [
+                    21,
+                    573
+                  ],
+                  [
+                    291,
+                    573
+                  ],
+                  [
+                    291,
+                    544
+                  ]
+                ]
+              },
+              {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.5065997242927551,
+                "coordinate": [
+                  20,
+                  573,
+                  490,
+                  632
+                ],
+                "order": 11,
+                "polygon_points": [
+                  [
+                    20.0,
+                    573.0
+                  ],
+                  [
+                    490.0,
+                    573.0
+                  ],
+                  [
+                    490.0,
+                    632.0
+                  ],
+                  [
+                    20.0,
+                    632.0
+                  ]
+                ]
+              },
+              {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.5167694091796875,
+                "coordinate": [
+                  21,
+                  631,
+                  445,
+                  720
+                ],
+                "order": 12,
+                "polygon_points": [
+                  [
+                    21,
+                    631
+                  ],
+                  [
+                    21,
+                    719
+                  ],
+                  [
+                    444,
+                    715
+                  ],
+                  [
+                    444,
+                    631
+                  ]
+                ]
+              },
+              {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.5158653855323792,
+                "coordinate": [
+                  20,
+                  719,
+                  489,
+                  811
+                ],
+                "order": 13,
+                "polygon_points": [
+                  [
+                    20.0,
+                    719.0
+                  ],
+                  [
+                    489.0,
+                    719.0
+                  ],
+                  [
+                    489.0,
+                    811.0
+                  ],
+                  [
+                    20.0,
+                    811.0
+                  ]
+                ]
+              },
+              {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.35265395045280457,
+                "coordinate": [
+                  21,
+                  779,
+                  375,
+                  811
+                ],
+                "order": 14,
+                "polygon_points": [
+                  [
+                    21,
+                    779
+                  ],
+                  [
+                    26,
+                    810
+                  ],
+                  [
+                    374,
+                    810
+                  ],
+                  [
+                    374,
+                    779
+                  ],
+                  [
+                    206,
+                    779
+                  ],
+                  [
+                    181,
+                    779
+                  ],
+                  [
+                    158,
+                    779
+                  ],
+                  [
+                    134,
+                    779
+                  ],
+                  [
+                    125,
+                    779
+                  ],
+                  [
+                    110,
+                    779
+                  ]
+                ]
+              },
+              {
+                "cls_id": 17,
+                "label": "paragraph_title",
+                "score": 0.6347932815551758,
+                "coordinate": [
+                  506,
+                  105,
+                  853,
+                  201
+                ],
+                "order": 15,
+                "polygon_points": [
+                  [
+                    506.0,
+                    105.0
+                  ],
+                  [
+                    853.0518798828125,
+                    109.01214599609375
+                  ],
+                  [
+                    852.0,
+                    200.0
+                  ],
+                  [
+                    504.9481201171875,
+                    195.98785400390625
+                  ]
+                ]
+              },
+              {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.3984217345714569,
+                "coordinate": [
+                  507,
+                  201,
+                  812,
+                  264
+                ],
+                "order": 16,
+                "polygon_points": [
+                  [
+                    507.0,
+                    201.0
+                  ],
+                  [
+                    812.0,
+                    201.0
+                  ],
+                  [
+                    812.0,
+                    264.0
+                  ],
+                  [
+                    507.0,
+                    264.0
+                  ]
+                ]
+              },
+              {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.3652442991733551,
+                "coordinate": [
+                  508,
+                  231,
+                  810,
+                  264
+                ],
+                "order": 17,
+                "polygon_points": [
+                  [
+                    508,
+                    231
+                  ],
+                  [
+                    508,
+                    263
+                  ],
+                  [
+                    809,
+                    263
+                  ],
+                  [
+                    809,
+                    231
+                  ]
+                ]
+              },
+              {
+                "cls_id": 17,
+                "label": "paragraph_title",
+                "score": 0.3621588349342346,
+                "coordinate": [
+                  509,
+                  272,
+                  691,
+                  317
+                ],
+                "order": 18,
+                "polygon_points": [
+                  [
+                    509.0,
+                    272.0
+                  ],
+                  [
+                    691.0,
+                    272.0
+                  ],
+                  [
+                    691.0,
+                    317.0
+                  ],
+                  [
+                    509.0,
+                    317.0
+                  ]
+                ]
+              },
+              {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.3911290466785431,
+                "coordinate": [
+                  508,
+                  327,
+                  692,
+                  372
+                ],
+                "order": 19,
+                "polygon_points": [
+                  [
+                    508.0,
+                    327.0
+                  ],
+                  [
+                    692.0,
+                    327.0
+                  ],
+                  [
+                    692.0,
+                    372.0
+                  ],
+                  [
+                    508.0,
+                    372.0
+                  ]
+                ]
+              },
+              {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.31248894333839417,
+                "coordinate": [
+                  709,
+                  301,
+                  909,
+                  335
+                ],
+                "order": 20,
+                "polygon_points": [
+                  [
+                    709.0,
+                    301.0
+                  ],
+                  [
+                    909.0,
+                    301.0
+                  ],
+                  [
+                    909.0,
+                    335.0
+                  ],
+                  [
+                    709.0,
+                    335.0
+                  ]
+                ]
+              },
+              {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.43466901779174805,
+                "coordinate": [
+                  508,
+                  382,
+                  913,
+                  453
+                ],
+                "order": 21,
+                "polygon_points": [
+                  [
+                    508.0,
+                    382.0
+                  ],
+                  [
+                    913.0,
+                    382.0
+                  ],
+                  [
+                    913.0,
+                    453.0
+                  ],
+                  [
+                    508.0,
+                    453.0
+                  ]
+                ]
+              },
+              {
+                "cls_id": 17,
+                "label": "paragraph_title",
+                "score": 0.39620015025138855,
+                "coordinate": [
+                  508,
+                  458,
+                  822,
+                  498
+                ],
+                "order": 22,
+                "polygon_points": [
+                  [
+                    508.0,
+                    458.0
+                  ],
+                  [
+                    822.0,
+                    458.0
+                  ],
+                  [
+                    822.0,
+                    498.0
+                  ],
+                  [
+                    508.0,
+                    498.0
+                  ]
+                ]
+              },
+              {
+                "cls_id": 21,
+                "label": "table",
+                "score": 0.39733079075813293,
+                "coordinate": [
+                  507,
+                  459,
+                  913,
+                  590
+                ],
+                "order": null,
+                "polygon_points": [
+                  [
+                    512,
+                    459
+                  ],
+                  [
+                    507,
+                    484
+                  ],
+                  [
+                    507,
+                    553
+                  ],
+                  [
+                    507,
+                    585
+                  ],
+                  [
+                    512,
+                    589
+                  ],
+                  [
+                    912,
+                    589
+                  ],
+                  [
+                    908,
+                    464
+                  ],
+                  [
+                    880,
+                    459
+                  ],
+                  [
+                    823,
+                    459
+                  ]
+                ]
+              },
+              {
+                "cls_id": 17,
+                "label": "paragraph_title",
+                "score": 0.3202872574329376,
+                "coordinate": [
+                  509,
+                  551,
+                  712,
+                  589
+                ],
+                "order": 23,
+                "polygon_points": [
+                  [
+                    509,
+                    551
+                  ],
+                  [
+                    509,
+                    588
+                  ],
+                  [
+                    711,
+                    588
+                  ],
+                  [
+                    711,
+                    556
+                  ],
+                  [
+                    707,
+                    551
+                  ]
+                ]
+              },
+              {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.6446788907051086,
+                "coordinate": [
+                  507,
+                  599,
+                  910,
+                  663
+                ],
+                "order": 24,
+                "polygon_points": [
+                  [
+                    507.0,
+                    599.0
+                  ],
+                  [
+                    910.0,
+                    599.0
+                  ],
+                  [
+                    910.0,
+                    663.0
+                  ],
+                  [
+                    507.0,
+                    663.0
+                  ]
+                ]
+              },
+              {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.6652733087539673,
+                "coordinate": [
+                  506,
+                  666,
+                  908,
+                  731
+                ],
+                "order": 25,
+                "polygon_points": [
+                  [
+                    506.0,
+                    666.0
+                  ],
+                  [
+                    908.0,
+                    666.0
+                  ],
+                  [
+                    908.0,
+                    731.0
+                  ],
+                  [
+                    506.0,
+                    731.0
+                  ]
+                ]
+              },
+              {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.31597089767456055,
+                "coordinate": [
+                  507,
+                  738,
+                  858,
+                  769
+                ],
+                "order": 26,
+                "polygon_points": [
+                  [
+                    507.0,
+                    738.0
+                  ],
+                  [
+                    858.0,
+                    738.0
+                  ],
+                  [
+                    858.0,
+                    769.0
+                  ],
+                  [
+                    507.0,
+                    769.0
+                  ]
+                ]
+              },
+              {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.3671693503856659,
+                "coordinate": [
+                  508,
+                  738,
+                  914,
+                  799
+                ],
+                "order": 27,
+                "polygon_points": [
+                  [
+                    520.8334932213182,
+                    768.9827933875296
+                  ],
+                  [
+                    508.0,
+                    798.0
+                  ],
+                  [
+                    913.0,
+                    798.0
+                  ],
+                  [
+                    913.0,
+                    743.0
+                  ],
+                  [
+                    818.0,
+                    738.0
+                  ],
+                  [
+                    523.0,
+                    738.0
+                  ],
+                  [
+                    513.0,
+                    743.0
+                  ]
+                ]
+              },
+              {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.3463950753211975,
+                "coordinate": [
+                  507,
+                  766,
+                  913,
+                  798
+                ],
+                "order": 28,
+                "polygon_points": [
+                  [
+                    507,
+                    766
+                  ],
+                  [
+                    507,
+                    793
+                  ],
+                  [
+                    512,
+                    797
+                  ],
+                  [
+                    912,
+                    797
+                  ],
+                  [
+                    912,
+                    766
+                  ],
+                  [
+                    772,
+                    766
+                  ]
+                ]
+              }
+            ]
+          }
+        },
+        "markdown": {
+          "text": "Ingredients: Water, Sugar, Oyster extractives (oyster, water, salt), Salt, Monosodium glutamate, Modified corn starch, Wheat flour, Disodium 5'-ribonucleotide, Yeast extract, Citric acid.\n\nContains: Oyster, Wheat.\n\nIngrédients: Eau, Sucres, Extrait de huître (huître, eau, sel), Sel, Glutamate monosodique, Amidon de maïs modifié, Farine de blé, 5'-Ribonucleotide disodique, Extrait de levure, Acide citrique.\n\nContient: Huître, Blé.\n\nPlease keep it in cool and dry place. Tightly close lid after use and keep refrigerated.\n\nVeuillez le conserver dans un endroit frais et sec. Bien fermer\n\nle couvercle après utilisation et conserver au réfrigérateur.\n\nProduct of China / Produit de Chine\n\nManufacturer/Fabricant: Foshan Haitian (Gaoming) Flavouring & Food Co., Ltd.\n\nAddress/Adresse: Eastern Park (No.889 Gaoming Road), Cangjiang Industrial Park, Gaoming District, Foshan, Guangdong, China\n\nBest before : see the package / Meilleur avant: voir emballage\n\nImported by/Importé par: UNI-ONE FOOD GROUP INC.\n\n1520 Derwent Way, Delta B.C. Canada V3M6N7\n\n## Nutrition Facts Valeur nutritive\n\nPer 1 tbsp(19 g)\n\npour 1 cuillère à soupe (19 g)\n\n## Calories 25\n\nFat / Lipides 0 g\n\n% valeur quotidienne *\n\n\n\nCarbohydrate / Glucides 5 g\n\nSugars / Sucres 4 g 4 %\n\n## Protein / Protéines 1 g\n\n\n<table border=1 style='margin: auto; word-wrap: break-word;'><tr><td colspan=\"2\">Protein / Protéines 1 g</td></tr><tr><td style='text-align: center; word-wrap: break-word;'>Sodium 1070 mg</td><td style='text-align: center; word-wrap: break-word;'>47 %</td></tr><tr><td style='text-align: center; word-wrap: break-word;'>Potassium 10 mg</td><td style='text-align: center; word-wrap: break-word;'>0 %</td></tr></table>\n\n## Potassium 10 mg\n\nNot a significant source of saturated fat, trans fat, fibre, cholesterol, calcium or iron.\n\nSource négligeable de lipides saturés, lipides\n\ntrans, fibres, cholestérol, calcium et fer.\n\n5% or less is a little, 15% or more is a lot\n\n5% ou moins c'est peu, 15% ou plus c'est beaucoup",
+          "images": {}
+        },
+        "outputImages": {
+          "layout_det_res": "https://pplines-online.bj.bcebos.com/deploy/official/paddleocr/pp-ocr-vl-15//8f59cfa2-b1f2-408b-a4e3-51820ecea2a2/layout_det_res_0.jpg?authorization=bce-auth-v1%2FALTAKzReLNvew3ySINYJ0fuAMN%2F2026-03-15T11%3A11%3A04Z%2F-1%2F%2Fbdc93fa90b7bc976b6b9fdc00d74f473d44fe74a4360aa8556307ae4c796d752"
+        },
+        "inputImage": "https://pplines-online.bj.bcebos.com/deploy/official/paddleocr/pp-ocr-vl-15//8f59cfa2-b1f2-408b-a4e3-51820ecea2a2/input_img_0.jpg?authorization=bce-auth-v1%2FALTAKzReLNvew3ySINYJ0fuAMN%2F2026-03-15T11%3A11%3A05Z%2F-1%2F%2F3d0af42414f93b906b8e57419c39d3909aa6ca0a62f9a1618fbf72298d5e7634"
+      }
+    ],
+    "dataInfo": {
+      "width": 945,
+      "height": 827,
+      "type": "image"
+    },
+    "preprocessedImages": [
+      "https://pplines-online.bj.bcebos.com/deploy/official/paddleocr/pp-ocr-vl-15//8f59cfa2-b1f2-408b-a4e3-51820ecea2a2/preprocessed_img_0.jpg?authorization=bce-auth-v1%2FALTAKzReLNvew3ySINYJ0fuAMN%2F2026-03-15T11%3A11%3A05Z%2F-1%2F%2Feee7688b1383b05c6a73a937e70810618030bdd17cfdebcfd9034442d49f7446"
+    ]
+  }
+}

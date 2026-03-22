@@ -1,0 +1,898 @@
+{
+  "logId": "571a2f77-3d83-40c4-acc8-2683a1352617",
+  "errorCode": 0,
+  "errorMsg": "Success",
+  "result": {
+    "layoutParsingResults": [
+      {
+        "prunedResult": {
+          "page_count": null,
+          "width": 591,
+          "height": 1418,
+          "model_settings": {
+            "use_doc_preprocessor": false,
+            "use_layout_detection": true,
+            "use_chart_recognition": false,
+            "use_seal_recognition": false,
+            "use_ocr_for_image_block": false,
+            "format_block_content": false,
+            "merge_layout_blocks": true,
+            "markdown_ignore_labels": [
+              "number",
+              "footnote",
+              "header",
+              "header_image",
+              "footer",
+              "footer_image",
+              "aside_text"
+            ],
+            "return_layout_polygon_points": true
+          },
+          "parsing_res_list": [
+            {
+              "block_label": "text",
+              "block_content": "[EN] 0 MUSHROOM DARK SOY SAUCE / [NL] 0\nCHAMPIGNON DONKERE SOJASAUS / [ES] 0 SALSA DE\nSOYA OSCURA DE SETA DE PAJA / [DE] 0 SOJASAUCE MIT\nPILZGESCHMACK / [FR] 0 SAUCE DE SOJA AU CHAMPIGNON 0草菇老抽\n[EN] Ingredients: Water, Soybeans (23%), Sugar, Salt, Wheat(Gluten)(11%), Mushroom\nExtract(0.002%). / [NL] Ingrediënten: Water, Sojabonen (23%), Suiker, Zout,",
+              "block_bbox": [
+                21,
+                17,
+                463,
+                122
+              ],
+              "block_id": 0,
+              "block_order": 1,
+              "group_id": 0,
+              "block_polygon_points": [
+                [
+                  21.0,
+                  17.0
+                ],
+                [
+                  463.0,
+                  17.0
+                ],
+                [
+                  463.0,
+                  122.0
+                ],
+                [
+                  21.0,
+                  122.0
+                ]
+              ]
+            },
+            {
+              "block_label": "text",
+              "block_content": "",
+              "block_bbox": [
+                21,
+                125,
+                570,
+                217
+              ],
+              "block_id": 1,
+              "block_order": 2,
+              "group_id": 0,
+              "block_polygon_points": [
+                [
+                  21.0,
+                  125.0
+                ],
+                [
+                  570.0,
+                  125.0
+                ],
+                [
+                  570.0,
+                  217.0
+                ],
+                [
+                  21.0,
+                  217.0
+                ]
+              ]
+            },
+            {
+              "block_label": "image",
+              "block_content": "",
+              "block_bbox": [
+                473,
+                19,
+                564,
+                81
+              ],
+              "block_id": 2,
+              "block_order": null,
+              "group_id": 2,
+              "block_polygon_points": [
+                [
+                  473.0,
+                  19.0
+                ],
+                [
+                  564.0,
+                  19.0
+                ],
+                [
+                  564.0,
+                  81.0
+                ],
+                [
+                  473.0,
+                  81.0
+                ]
+              ]
+            },
+            {
+              "block_label": "text",
+              "block_content": "Tarwe(Gluten)(11%), Paddenstoelenextract (0.002%). / [ES]Ingredientes: Agua, Soja (23%), Azúcar, Sal, Trigo(Gluten)(11%), Jugo de Seta de Paja(0.002%).",
+              "block_bbox": [
+                22,
+                218,
+                557,
+                279
+              ],
+              "block_id": 3,
+              "block_order": 3,
+              "group_id": 3,
+              "block_polygon_points": [
+                [
+                  22.0,
+                  218.0
+                ],
+                [
+                  557.0,
+                  218.0
+                ],
+                [
+                  557.0,
+                  279.0
+                ],
+                [
+                  22.0,
+                  279.0
+                ]
+              ]
+            },
+            {
+              "block_label": "text",
+              "block_content": "[DE] Zutaten: Wasser, Sojabohnen (23%), Zucker, Salz, Weizen(Gluten)(11%), Hefeextrakt (0.002%). / [FR] Ingrédients:Eau, Soj (23%), Sucre, Sel, Blé(Gluten)(11%), Extrait de Champignon (0.002%).",
+              "block_bbox": [
+                21,
+                278,
+                565,
+                367
+              ],
+              "block_id": 4,
+              "block_order": 4,
+              "group_id": 4,
+              "block_polygon_points": [
+                [
+                  21,
+                  366
+                ],
+                [
+                  564,
+                  366
+                ],
+                [
+                  564,
+                  292
+                ],
+                [
+                  559,
+                  285
+                ],
+                [
+                  520,
+                  278
+                ],
+                [
+                  116,
+                  278
+                ],
+                [
+                  112,
+                  278
+                ],
+                [
+                  24,
+                  278
+                ]
+              ]
+            },
+            {
+              "block_label": "text",
+              "block_content": "Store in a cool, dry place.Please keep in refrigerator after opening and consume as soon as possible. / Bewaren op een koele, droge plaats. Na opening in de koelkast bewaren en zo snel mogelijk consumeren. / Conservar en un lugar fresco y seco. Conservar en el frigorífico una vez abierto y consumir lo antes posible. / Kühl und trocken lagern. Nach dem Öffnen bitte im Kühlschrank aufbewahren und schnellstmöglich verbrauchen. / Conserver dans un endroit frais et sec.Veuillez conserver au réfrigérateur après ouverture et consommer dès que possible. Good for dipping, cold-mixing, stir-frying and braising for coloring./ Goed voor onderdompelen, koud mengen, roerbakken en te smoren voor kleur./ Servir para mojar, mezclar en frio, saltear y estofar para dar color. / Gut zum Dippen, Kaltmischen, Braten und Schmoren zum Färben./ Bon pour tremper, mélanger à froid, faire sauter et les plats mijotés pour ajouter de la couleur.",
+              "block_bbox": [
+                22,
+                369,
+                572,
+                728
+              ],
+              "block_id": 5,
+              "block_order": 5,
+              "group_id": 5,
+              "block_polygon_points": [
+                [
+                  22.0,
+                  369.0
+                ],
+                [
+                  572.0,
+                  369.0
+                ],
+                [
+                  572.0,
+                  728.0
+                ],
+                [
+                  22.0,
+                  728.0
+                ]
+              ]
+            },
+            {
+              "block_label": "text",
+              "block_content": "Best before / Ten minste houdbaar tot / Consumir preferentemente antes del / Mindestens haltbar bis / Á consommer de préférence avant le: See the package / Zie verpakking / Ver envase / Siehe verpackung / Voir emballage (DD/MM/YYYY). Product of China / Product uit China / Producto de China / Produkt aus China / Produit de Chine",
+              "block_bbox": [
+                21,
+                734,
+                569,
+                878
+              ],
+              "block_id": 6,
+              "block_order": 6,
+              "group_id": 6,
+              "block_polygon_points": [
+                [
+                  21.0,
+                  734.0
+                ],
+                [
+                  569.0,
+                  734.0
+                ],
+                [
+                  569.0,
+                  878.0
+                ],
+                [
+                  21.0,
+                  878.0
+                ]
+              ]
+            },
+            {
+              "block_label": "text",
+              "block_content": "Importer/Importeur/Importador/Importeur/Importateur: JINGDONG RETAIL\n(NETHERLANDS) B.V.\nDa Vincistraat 5, 2652XE, Berkel en Rodenrijs, The Netherlands\n500 mL",
+              "block_bbox": [
+                21,
+                884,
+                557,
+                972
+              ],
+              "block_id": 7,
+              "block_order": 7,
+              "group_id": 7,
+              "block_polygon_points": [
+                [
+                  21.0,
+                  884.0
+                ],
+                [
+                  557.0,
+                  884.0
+                ],
+                [
+                  557.0,
+                  972.0
+                ],
+                [
+                  21.0,
+                  972.0
+                ]
+              ]
+            },
+            {
+              "block_label": "table",
+              "block_content": "<table><tr><td colspan=\"2\">Nutrition\ndeclaration / Voedingswaardevermelding / Información nutricional / Nährwertdeklaration / Déclaration nutritionnelle</td></tr><tr><td colspan=\"2\">Nutrition facts per / Voedingswaarde per / Valor nutricional por / Nährwerte pro / Valeur nutritive pour 100mL</td></tr><tr><td>Energy / Energie / Valor energético / Energie / Énergie</td><td>706 kJ / 167 kcal</td></tr><tr><td>Fat / Vetten / Grasas / Fett / Matières grasses</td><td>0 g</td></tr><tr><td>of which / waarvan / de las cuales / davon / dont</td><td></td></tr><tr><td>-Saturates / Verzadigde vetzuren / Saturadas / gesättigte Fettsäuren / Acides gras saturés</td><td>0 g</td></tr><tr><td>Carbohydrate / Koolhydraten / Hidratos de carbono / Kohlenhydrate / Glucides</td><td>32 g</td></tr><tr><td>of which / waarvan / de los cuales / davon / dont</td><td></td></tr><tr><td>-Sugars / Suikers / Azúcares / Zucker / Sucres</td><td>7.1 g</td></tr><tr><td>Protein / Eiwitten / Proteínas / Eiweiß / Protéines</td><td>11 g</td></tr><tr><td>Salt / Zout / Sal / Salz / Sel</td><td>18.8 g</td></tr></table>",
+              "block_bbox": [
+                24,
+                976,
+                563,
+                1302
+              ],
+              "block_id": 8,
+              "block_order": null,
+              "group_id": 8,
+              "block_polygon_points": [
+                [
+                  24.0,
+                  976.0
+                ],
+                [
+                  563.0,
+                  976.0
+                ],
+                [
+                  563.0,
+                  1302.0
+                ],
+                [
+                  24.0,
+                  1302.0
+                ]
+              ]
+            },
+            {
+              "block_label": "image",
+              "block_content": "",
+              "block_bbox": [
+                27,
+                1322,
+                101,
+                1398
+              ],
+              "block_id": 9,
+              "block_order": null,
+              "group_id": 9,
+              "block_polygon_points": [
+                [
+                  27.0,
+                  1322.0
+                ],
+                [
+                  101.0,
+                  1322.0
+                ],
+                [
+                  101.0,
+                  1398.0
+                ],
+                [
+                  27.0,
+                  1398.0
+                ]
+              ]
+            },
+            {
+              "block_label": "image",
+              "block_content": "",
+              "block_bbox": [
+                109,
+                1321,
+                186,
+                1397
+              ],
+              "block_id": 10,
+              "block_order": null,
+              "group_id": 10,
+              "block_polygon_points": [
+                [
+                  109.0,
+                  1321.0
+                ],
+                [
+                  186.0,
+                  1321.0
+                ],
+                [
+                  186.0,
+                  1397.0
+                ],
+                [
+                  109.0,
+                  1397.0
+                ]
+              ]
+            },
+            {
+              "block_label": "footer_image",
+              "block_content": "",
+              "block_bbox": [
+                513,
+                1329,
+                570,
+                1387
+              ],
+              "block_id": 11,
+              "block_order": null,
+              "group_id": 11,
+              "block_polygon_points": [
+                [
+                  513.0,
+                  1336.0
+                ],
+                [
+                  569.0,
+                  1336.0
+                ],
+                [
+                  569.0,
+                  1386.0
+                ],
+                [
+                  513.0,
+                  1386.0
+                ]
+              ]
+            }
+          ],
+          "layout_det_res": {
+            "boxes": [
+              {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.3042696714401245,
+                "coordinate": [
+                  21,
+                  17,
+                  463,
+                  122
+                ],
+                "order": 1,
+                "polygon_points": [
+                  [
+                    21.0,
+                    17.0
+                  ],
+                  [
+                    463.0,
+                    17.0
+                  ],
+                  [
+                    463.0,
+                    122.0
+                  ],
+                  [
+                    21.0,
+                    122.0
+                  ]
+                ]
+              },
+              {
+                "cls_id": 14,
+                "label": "image",
+                "score": 0.3938867151737213,
+                "coordinate": [
+                  473,
+                  19,
+                  564,
+                  81
+                ],
+                "order": null,
+                "polygon_points": [
+                  [
+                    473.0,
+                    19.0
+                  ],
+                  [
+                    564.0,
+                    19.0
+                  ],
+                  [
+                    564.0,
+                    81.0
+                  ],
+                  [
+                    473.0,
+                    81.0
+                  ]
+                ]
+              },
+              {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.336032897233963,
+                "coordinate": [
+                  21,
+                  125,
+                  570,
+                  217
+                ],
+                "order": 2,
+                "polygon_points": [
+                  [
+                    21.0,
+                    125.0
+                  ],
+                  [
+                    570.0,
+                    125.0
+                  ],
+                  [
+                    570.0,
+                    217.0
+                  ],
+                  [
+                    21.0,
+                    217.0
+                  ]
+                ]
+              },
+              {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.3155209422111511,
+                "coordinate": [
+                  22,
+                  218,
+                  557,
+                  279
+                ],
+                "order": 3,
+                "polygon_points": [
+                  [
+                    22.0,
+                    218.0
+                  ],
+                  [
+                    557.0,
+                    218.0
+                  ],
+                  [
+                    557.0,
+                    279.0
+                  ],
+                  [
+                    22.0,
+                    279.0
+                  ]
+                ]
+              },
+              {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.4149304926395416,
+                "coordinate": [
+                  21,
+                  278,
+                  565,
+                  367
+                ],
+                "order": 4,
+                "polygon_points": [
+                  [
+                    21,
+                    366
+                  ],
+                  [
+                    564,
+                    366
+                  ],
+                  [
+                    564,
+                    292
+                  ],
+                  [
+                    559,
+                    285
+                  ],
+                  [
+                    520,
+                    278
+                  ],
+                  [
+                    116,
+                    278
+                  ],
+                  [
+                    112,
+                    278
+                  ],
+                  [
+                    24,
+                    278
+                  ]
+                ]
+              },
+              {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.35817477107048035,
+                "coordinate": [
+                  22,
+                  369,
+                  572,
+                  728
+                ],
+                "order": 5,
+                "polygon_points": [
+                  [
+                    22.0,
+                    369.0
+                  ],
+                  [
+                    572.0,
+                    369.0
+                  ],
+                  [
+                    572.0,
+                    728.0
+                  ],
+                  [
+                    22.0,
+                    728.0
+                  ]
+                ]
+              },
+              {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.3900086283683777,
+                "coordinate": [
+                  21,
+                  734,
+                  569,
+                  878
+                ],
+                "order": 6,
+                "polygon_points": [
+                  [
+                    21.0,
+                    734.0
+                  ],
+                  [
+                    569.0,
+                    734.0
+                  ],
+                  [
+                    569.0,
+                    878.0
+                  ],
+                  [
+                    21.0,
+                    878.0
+                  ]
+                ]
+              },
+              {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.3142697513103485,
+                "coordinate": [
+                  21,
+                  821,
+                  530,
+                  880
+                ],
+                "order": 7,
+                "polygon_points": [
+                  [
+                    21,
+                    821
+                  ],
+                  [
+                    24,
+                    865
+                  ],
+                  [
+                    30,
+                    879
+                  ],
+                  [
+                    47,
+                    879
+                  ],
+                  [
+                    51,
+                    879
+                  ],
+                  [
+                    527,
+                    879
+                  ],
+                  [
+                    529,
+                    821
+                  ]
+                ]
+              },
+              {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.34437626600265503,
+                "coordinate": [
+                  21,
+                  884,
+                  557,
+                  972
+                ],
+                "order": 8,
+                "polygon_points": [
+                  [
+                    21.0,
+                    884.0
+                  ],
+                  [
+                    557.0,
+                    884.0
+                  ],
+                  [
+                    557.0,
+                    972.0
+                  ],
+                  [
+                    21.0,
+                    972.0
+                  ]
+                ]
+              },
+              {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.35362130403518677,
+                "coordinate": [
+                  22,
+                  941,
+                  418,
+                  972
+                ],
+                "order": 9,
+                "polygon_points": [
+                  [
+                    25,
+                    941
+                  ],
+                  [
+                    25,
+                    971
+                  ],
+                  [
+                    417,
+                    971
+                  ],
+                  [
+                    417,
+                    941
+                  ]
+                ]
+              },
+              {
+                "cls_id": 21,
+                "label": "table",
+                "score": 0.956393837928772,
+                "coordinate": [
+                  24,
+                  976,
+                  563,
+                  1302
+                ],
+                "order": null,
+                "polygon_points": [
+                  [
+                    24.0,
+                    976.0
+                  ],
+                  [
+                    563.0,
+                    976.0
+                  ],
+                  [
+                    563.0,
+                    1302.0
+                  ],
+                  [
+                    24.0,
+                    1302.0
+                  ]
+                ]
+              },
+              {
+                "cls_id": 14,
+                "label": "image",
+                "score": 0.34068965911865234,
+                "coordinate": [
+                  27,
+                  1322,
+                  101,
+                  1398
+                ],
+                "order": null,
+                "polygon_points": [
+                  [
+                    27.0,
+                    1322.0
+                  ],
+                  [
+                    101.0,
+                    1322.0
+                  ],
+                  [
+                    101.0,
+                    1398.0
+                  ],
+                  [
+                    27.0,
+                    1398.0
+                  ]
+                ]
+              },
+              {
+                "cls_id": 14,
+                "label": "image",
+                "score": 0.4497438967227936,
+                "coordinate": [
+                  109,
+                  1321,
+                  186,
+                  1397
+                ],
+                "order": null,
+                "polygon_points": [
+                  [
+                    109.0,
+                    1321.0
+                  ],
+                  [
+                    186.0,
+                    1321.0
+                  ],
+                  [
+                    186.0,
+                    1397.0
+                  ],
+                  [
+                    109.0,
+                    1397.0
+                  ]
+                ]
+              },
+              {
+                "cls_id": 9,
+                "label": "footer_image",
+                "score": 0.31550246477127075,
+                "coordinate": [
+                  513,
+                  1329,
+                  570,
+                  1387
+                ],
+                "order": null,
+                "polygon_points": [
+                  [
+                    513.0,
+                    1336.0
+                  ],
+                  [
+                    569.0,
+                    1336.0
+                  ],
+                  [
+                    569.0,
+                    1386.0
+                  ],
+                  [
+                    513.0,
+                    1386.0
+                  ]
+                ]
+              }
+            ]
+          }
+        },
+        "markdown": {
+          "text": "[EN] 0 MUSHROOM DARK SOY SAUCE / [NL] 0\n\nCHAMPIGNON DONKERE SOJASAUS / [ES] 0 SALSA DE\n\nSOYA OSCURA DE SETA DE PAJA / [DE] 0 SOJASAUCE MIT\n\nPILZGESCHMACK / [FR] 0 SAUCE DE SOJA AU CHAMPIGNON 0草菇老抽\n\n[EN] Ingredients: Water, Soybeans (23%), Sugar, Salt, Wheat(Gluten)(11%), Mushroom\n\nExtract(0.002%). / [NL] Ingrediënten: Water, Sojabonen (23%), Suiker, Zout,\n\n\n\n<div style=\"text-align: center;\"><img src=\"imgs/img_in_image_box_473_19_564_81.jpg\" alt=\"Image\" width=\"15%\" /></div>\n\n\nTarwe(Gluten)(11%), Paddenstoelenextract (0.002%). / [ES]Ingredientes: Agua, Soja (23%), Azúcar, Sal, Trigo(Gluten)(11%), Jugo de Seta de Paja(0.002%).\n\n[DE] Zutaten: Wasser, Sojabohnen (23%), Zucker, Salz, Weizen(Gluten)(11%), Hefeextrakt (0.002%). / [FR] Ingrédients:Eau, Soj (23%), Sucre, Sel, Blé(Gluten)(11%), Extrait de Champignon (0.002%).\n\nStore in a cool, dry place.Please keep in refrigerator after opening and consume as soon as possible. / Bewaren op een koele, droge plaats. Na opening in de koelkast bewaren en zo snel mogelijk consumeren. / Conservar en un lugar fresco y seco. Conservar en el frigorífico una vez abierto y consumir lo antes posible. / Kühl und trocken lagern. Nach dem Öffnen bitte im Kühlschrank aufbewahren und schnellstmöglich verbrauchen. / Conserver dans un endroit frais et sec.Veuillez conserver au réfrigérateur après ouverture et consommer dès que possible. Good for dipping, cold-mixing, stir-frying and braising for coloring./ Goed voor onderdompelen, koud mengen, roerbakken en te smoren voor kleur./ Servir para mojar, mezclar en frio, saltear y estofar para dar color. / Gut zum Dippen, Kaltmischen, Braten und Schmoren zum Färben./ Bon pour tremper, mélanger à froid, faire sauter et les plats mijotés pour ajouter de la couleur.\n\nBest before / Ten minste houdbaar tot / Consumir preferentemente antes del / Mindestens haltbar bis / Á consommer de préférence avant le: See the package / Zie verpakking / Ver envase / Siehe verpackung / Voir emballage (DD/MM/YYYY). Product of China / Product uit China / Producto de China / Produkt aus China / Produit de Chine\n\nImporter/Importeur/Importador/Importeur/Importateur: JINGDONG RETAIL\n\n(NETHERLANDS) B.V.\n\nDa Vincistraat 5, 2652XE, Berkel en Rodenrijs, The Netherlands\n\n500 mL\n\n\n<table border=1 style='margin: auto; word-wrap: break-word;'><tr><td colspan=\"2\">Nutrition\ndeclaration / Voedingswaardevermelding / Información nutricional / Nährwertdeklaration / Déclaration nutritionnelle</td></tr><tr><td colspan=\"2\">Nutrition facts per / Voedingswaarde per / Valor nutricional por / Nährwerte pro / Valeur nutritive pour 100mL</td></tr><tr><td style='text-align: center; word-wrap: break-word;'>Energy / Energie / Valor energético / Energie / Énergie</td><td style='text-align: center; word-wrap: break-word;'>706 kJ / 167 kcal</td></tr><tr><td style='text-align: center; word-wrap: break-word;'>Fat / Vetten / Grasas / Fett / Matières grasses</td><td style='text-align: center; word-wrap: break-word;'>0 g</td></tr><tr><td style='text-align: center; word-wrap: break-word;'>of which / waarvan / de las cuales / davon / dont</td><td style='text-align: center; word-wrap: break-word;'></td></tr><tr><td style='text-align: center; word-wrap: break-word;'>-Saturates / Verzadigde vetzuren / Saturadas / gesättigte Fettsäuren / Acides gras saturés</td><td style='text-align: center; word-wrap: break-word;'>0 g</td></tr><tr><td style='text-align: center; word-wrap: break-word;'>Carbohydrate / Koolhydraten / Hidratos de carbono / Kohlenhydrate / Glucides</td><td style='text-align: center; word-wrap: break-word;'>32 g</td></tr><tr><td style='text-align: center; word-wrap: break-word;'>of which / waarvan / de los cuales / davon / dont</td><td style='text-align: center; word-wrap: break-word;'></td></tr><tr><td style='text-align: center; word-wrap: break-word;'>-Sugars / Suikers / Azúcares / Zucker / Sucres</td><td style='text-align: center; word-wrap: break-word;'>7.1 g</td></tr><tr><td style='text-align: center; word-wrap: break-word;'>Protein / Eiwitten / Proteínas / Eiweiß / Protéines</td><td style='text-align: center; word-wrap: break-word;'>11 g</td></tr><tr><td style='text-align: center; word-wrap: break-word;'>Salt / Zout / Sal / Salz / Sel</td><td style='text-align: center; word-wrap: break-word;'>18.8 g</td></tr></table>\n\n<div style=\"text-align: center;\"><img src=\"imgs/img_in_image_box_27_1322_101_1398.jpg\" alt=\"Image\" width=\"12%\" /></div>\n\n\n<div style=\"text-align: center;\"><img src=\"imgs/img_in_image_box_109_1321_186_1397.jpg\" alt=\"Image\" width=\"13%\" /></div>\n",
+          "images": {
+            "imgs/img_in_image_box_473_19_564_81.jpg": "https://pplines-online.bj.bcebos.com/deploy/official/paddleocr/pp-ocr-vl-15//89161a55-3c94-4d67-987d-f3301c610b5f/markdown_0/imgs/img_in_image_box_473_19_564_81.jpg?authorization=bce-auth-v1%2FALTAKzReLNvew3ySINYJ0fuAMN%2F2026-03-15T08%3A13%3A46Z%2F-1%2F%2Ffdc4a8a420437525f65a47f9161e3a3b9b01a8e64f3b2a1b8c67424bb1dd2639",
+            "imgs/img_in_image_box_27_1322_101_1398.jpg": "https://pplines-online.bj.bcebos.com/deploy/official/paddleocr/pp-ocr-vl-15//89161a55-3c94-4d67-987d-f3301c610b5f/markdown_0/imgs/img_in_image_box_27_1322_101_1398.jpg?authorization=bce-auth-v1%2FALTAKzReLNvew3ySINYJ0fuAMN%2F2026-03-15T08%3A13%3A46Z%2F-1%2F%2F65ac12ccf4b98af5d7019fd6149d6e05090625c7adb57877ea0a189085afd9fd",
+            "imgs/img_in_image_box_109_1321_186_1397.jpg": "https://pplines-online.bj.bcebos.com/deploy/official/paddleocr/pp-ocr-vl-15//89161a55-3c94-4d67-987d-f3301c610b5f/markdown_0/imgs/img_in_image_box_109_1321_186_1397.jpg?authorization=bce-auth-v1%2FALTAKzReLNvew3ySINYJ0fuAMN%2F2026-03-15T08%3A13%3A46Z%2F-1%2F%2F4361d8087b6d4af17f68a4a2efe9ed36fdb5553a4fb8827a6cb1670beaa5f2a1",
+            "imgs/img_in_footer_image_box_513_1329_570_1387.jpg": "https://pplines-online.bj.bcebos.com/deploy/official/paddleocr/pp-ocr-vl-15//89161a55-3c94-4d67-987d-f3301c610b5f/markdown_0/imgs/img_in_footer_image_box_513_1329_570_1387.jpg?authorization=bce-auth-v1%2FALTAKzReLNvew3ySINYJ0fuAMN%2F2026-03-15T08%3A13%3A46Z%2F-1%2F%2F36a4874c78a3c0fb99f007369ebf5a628501f636f6b5343e10982cdeea863e00"
+          }
+        },
+        "outputImages": {
+          "layout_det_res": "https://pplines-online.bj.bcebos.com/deploy/official/paddleocr/pp-ocr-vl-15//89161a55-3c94-4d67-987d-f3301c610b5f/layout_det_res_0.jpg?authorization=bce-auth-v1%2FALTAKzReLNvew3ySINYJ0fuAMN%2F2026-03-15T08%3A13%3A46Z%2F-1%2F%2F19f2a7edc6838320e460352d46f6ab6ea07c6dea5a6294d6d5d8551facdd17f5"
+        },
+        "inputImage": "https://pplines-online.bj.bcebos.com/deploy/official/paddleocr/pp-ocr-vl-15//89161a55-3c94-4d67-987d-f3301c610b5f/input_img_0.jpg?authorization=bce-auth-v1%2FALTAKzReLNvew3ySINYJ0fuAMN%2F2026-03-15T08%3A13%3A46Z%2F-1%2F%2F5e81d761dafcb5def4433b3fc9ecd32e92a908ce2b3f53bb23269e4815dd1f7c"
+      }
+    ],
+    "dataInfo": {
+      "width": 591,
+      "height": 1418,
+      "type": "image"
+    },
+    "preprocessedImages": [
+      "https://pplines-online.bj.bcebos.com/deploy/official/paddleocr/pp-ocr-vl-15//89161a55-3c94-4d67-987d-f3301c610b5f/preprocessed_img_0.jpg?authorization=bce-auth-v1%2FALTAKzReLNvew3ySINYJ0fuAMN%2F2026-03-15T08%3A13%3A46Z%2F-1%2F%2F0b46111440702c4925382e1be814706e5e7f51f4059c3dafcf13c69cea213682"
+    ]
+  }
+}
