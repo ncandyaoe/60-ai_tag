@@ -1018,12 +1018,17 @@ def _draw_nutrition_table(c, data: dict, country_cfg: dict,
 def generate_label_pdf(data: dict, country_cfg: Optional[dict] = None) -> bytes:
     """
     根据产品数据生成 70mm×69mm 标签 PDF。
-    三阶段自适应字号 + 统一间距：字少→放大、字适中→填满、字多→横向压缩。
-    B+C 区域所有信息块使用统一自适应间距。
+    使用 flow_layout.py 独立引擎进行 B+C 区域自适应排版。
+    A 区域（标题/Logo）、营养表、Net Volume 等固定区域不变。
     """
     _register_font()
     country_cfg = country_cfg or {}
-    sizes, h_scale, unified_gap = _calc_font_sizes(data, country_cfg)
+
+    # 导入独立布局引擎
+    from flow_layout import (
+        FlowRect, FontConfig, layout_flow_content,
+        find_best_font_size, plm_to_blocks, get_min_font_pt,
+    )
 
     buf = io.BytesIO()
     c = pdf_canvas.Canvas(buf, pagesize=(LABEL_W, LABEL_H))
@@ -1035,24 +1040,23 @@ def generate_label_pdf(data: dict, country_cfg: Optional[dict] = None) -> bytes:
     bottom = MARGIN
     content_w = right - left
 
-    # 首行 baseline 下移 ascent，让字符顶部不超出 margin
-    y = top - sizes["title"] * 0.8
-
-    # 后置横向压缩：仅对 L 形正文区域生效（由两轮搜索确定）
-    # h_scale 已由 _calc_font_sizes 两轮搜索确定，不再此处计算
-    # h_scale_post = _calc_lshape_h_scale(data, sizes, content_w)  # 备用
+    # 固定字号（标题、中文名、营养表、Net Volume 不受自适应影响）
+    sizes = {
+        "title": _FIXED_TITLE,
+        "cn":    _FIXED_CN,
+        "nut":   _FIXED_NUT,
+        "net":   _FIXED_NET,
+    }
 
     # ============================================================
     # 区域 A：产品英文名 + 中文名（左）、Logo（右上）
     # ============================================================
+    y = top - sizes["title"] * 0.8
+
     logo_path = data.get("brand_logo", "")
     static_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static")
     if not logo_path or not os.path.isfile(logo_path):
         logo_path = os.path.join(static_dir, "logo_placeholder.png")
-
-    # Logo 专区：顶部与 product_name_en 齐平
-    logo_bottom_y = top - LOGO_H - LOGO_PAD  # logo 底边下方 y 坐标
-    logo_reserve = LOGO_W + LOGO_PAD         # 文字需要避让的宽度
 
     if os.path.isfile(logo_path):
         try:
@@ -1062,180 +1066,90 @@ def generate_label_pdf(data: dict, country_cfg: Optional[dict] = None) -> bytes:
         except Exception:
             pass
 
-    # 英文名（粗体大号）
-    a_gap = 1  # A 区域内部最小间距 (pt)
-
+    a_gap = 1
     c.setFont(_FONT_NAME_BOLD, sizes["title"])
     en_name = data.get("product_name_en", "PRODUCT NAME")
     c.drawString(left, y, en_name)
 
-    # 中文名
     cn_name = data.get("product_name_cn", "")
     if cn_name:
-        y -= sizes["title"] * 1.15 + a_gap  # en name (非最后)
+        y -= sizes["title"] * 1.15 + a_gap
         c.setFont(_FONT_NAME_BOLD, sizes["cn"])
         c.drawString(left, y, cn_name)
-        y -= sizes["cn"] * 1.0 + a_gap      # cn name (最后，leading 缩减)
+        # 仅减去 descender 深度 + 小间距，flow engine 负责第一行定位
+        y -= sizes["cn"] * 0.25 + a_gap
     else:
-        y -= sizes["title"] * 1.0 + a_gap   # en name (最后，leading 缩减)
+        y -= sizes["title"] * 0.25 + a_gap
 
     # ============================================================
-    # 区域 B+C：统一间距信息流
+    # 区域 B+C：使用 flow_layout 独立引擎排版
     # ============================================================
 
-    # ---- B 区域：全宽文字信息 ----
-
-    # 提前计算营养表边界，供 B+C 区域所有文字块避让
+    # 营养表尺寸
     right_col_ratio = 0.62
     col_gap = 4
     left_col_w = content_w * (1 - right_col_ratio)
     right_col_w = content_w * right_col_ratio
     right_col_x = left + left_col_w + col_gap
     actual_right_w = right_col_w - col_gap
-    body_leading = sizes["body"] * 1.15
 
     nut_total_h = _calc_nutrition_height(data, sizes)
-    nut_top_y = bottom + nut_total_h + body_leading  # 缓冲区：提前一行开始缩窄（与估算器对称）
-    nut_reserve = _effective_width(right_col_w, h_scale)  # 营养表避让宽度
 
-    # 在 L 形正文区域开始前设置横向压缩
-    if h_scale < 1.0:
-        tz_pct = int(h_scale * 100)
-        c._code.append(f'{tz_pct} Tz')
-
-    # Ingredients
-    ingredients = data.get("ingredients", "")
-    if ingredients:
-        y = _draw_wrapped_text(
-            c, ingredients, left, y,
-            content_w, _FONT_NAME, sizes["ingr"],
-            bold_prefix="Ingredients: ", h_scale=h_scale,
-            logo_bottom_y=logo_bottom_y, logo_reserve=logo_reserve,
-            nut_top_y=nut_top_y, nut_reserve=nut_reserve
-        )
-        y -= unified_gap
-
-    # Contains
-    allergens = data.get("allergens", "")
-    if allergens:
-        y = _draw_wrapped_text(
-            c, allergens, left, y,
-            content_w, _FONT_NAME, sizes["body"],
-            bold_prefix="Contains: ", h_scale=h_scale,
-            logo_bottom_y=logo_bottom_y, logo_reserve=logo_reserve,
-            nut_top_y=nut_top_y, nut_reserve=nut_reserve
-        )
-        y -= unified_gap
-
-    # Storage
-    storage = data.get("storage", "")
-    if storage:
-        y = _draw_wrapped_text(
-            c, storage, left, y,
-            content_w, _FONT_NAME, sizes["body"],
-            h_scale=h_scale,
-            nut_top_y=nut_top_y, nut_reserve=nut_reserve
-        )
-        y -= unified_gap
-
-    # Production date / Best Before
-    prod_date = data.get("production_date", "")
-    best_before = data.get("best_before", "")
-    if prod_date or best_before:
-        if prod_date and best_before:
-            # 合并为一个文本块，统一走 _draw_wrapped_text 以正确避让营养表
-            date_text = f"{prod_date} / Best Before: {best_before}"
-            y = _draw_wrapped_text(
-                c, date_text, left, y,
-                content_w, _FONT_NAME, sizes["body"],
-                bold_prefix="Production date: ", h_scale=h_scale,
-                nut_top_y=nut_top_y, nut_reserve=nut_reserve
-            )
-        elif prod_date:
-            y = _draw_wrapped_text(
-                c, prod_date, left, y,
-                content_w, _FONT_NAME, sizes["body"],
-                bold_prefix="Production date: ", h_scale=h_scale,
-                nut_top_y=nut_top_y, nut_reserve=nut_reserve
-            )
-        else:
-            y = _draw_wrapped_text(
-                c, best_before, left, y,
-                content_w, _FONT_NAME, sizes["body"],
-                bold_prefix="Best Before: ", h_scale=h_scale,
-                nut_top_y=nut_top_y, nut_reserve=nut_reserve
-            )
-        y -= unified_gap
-
-    # ============================================================
-    # 区域 C：左栏（厂商信息 + Net Volume）+ 右栏（营养表）
-    # ============================================================
+    # Net Volume 预留
     net_weight = data.get("net_weight", "")
+    net_reserve = (_FIXED_NET * _CAP_H_RATIO + 2) if net_weight else 0  # +2pt 缓冲
 
-    # Net Volume 预留高度（baseline 在 bottom，文字向上延伸 cap height）
-    net_reserve = (_FIXED_NET * _CAP_H_RATIO) if net_weight else 0
+    # 营养表顶部 y 坐标（从底部往上：bottom + nut_total_h）
+    nut_top_y = bottom + nut_total_h
 
-    # 营养表边界（已在 B 区域前计算 nut_top_y, nut_reserve, right_col_x, actual_right_w 等）
+    # 构建 FlowRect 区域（倒 L 型）
+    # R1：全宽区域（A 区域底部 → 营养表顶部）
+    # R2：左栏窄区域（营养表顶部 → 底部 + net_reserve）
+    r1_y = y           # A 区域结束后的 y（FlowRect 的顶边）
+    r1_h = y - nut_top_y
+    r2_y = nut_top_y
+    r2_h = nut_top_y - (bottom + net_reserve)
 
-    # ------------------------------------------------------------------
-    # C 左栏间距 = body_leading（与 B 区域和行内间距统一）
-    # ------------------------------------------------------------------
-    c_left_gap = 0  # 无额外块间距（与 B 区域统一）
-    mfr = data.get("manufacturer", "")
-    addr = data.get("manufacturer_address", "")
-    imp = data.get("importer_info", "")
+    flow_regions = []
+    if r1_h > 0:
+        flow_regions.append(FlowRect(x=left, y=r1_y, width=content_w, height=r1_h))
+    if r2_h > 0:
+        flow_regions.append(FlowRect(x=left, y=r2_y, width=left_col_w, height=r2_h, seamless=True))
 
-    # ------------------------------------------------------------------
-    # 开始绘制 C 左栏
-    # ------------------------------------------------------------------
-    # 底部硬约束：C 块文字不可侵入 Net Volume 区域
-    c_bottom_limit = bottom + net_reserve
+    # PLM 数据 → TextBlock 列表
+    blocks = plm_to_blocks(data)
 
-    # --- Product of China ---
-    origin = data.get("origin", "China")
-    c.setFont(_FONT_NAME_BOLD, sizes["body"])
-    c.drawString(left, y, f"Product of {origin}")
-    y -= body_leading + c_left_gap
+    # 法规最小字号（硬约束：低于此值不合规，用 h_scale 代替缩小字号）
+    country_code = country_cfg.get("code", "DEFAULT")
+    min_mm = country_cfg.get("min_font_height_mm", 1.2)
+    min_font_pt = min_mm / (0.3528 * _X_HEIGHT_RATIO)
 
-    # --- Manufacturer（进入营养表避让区域，自动缩宽）---
-    if mfr and y > c_bottom_limit:
-        y = _draw_wrapped_text(
-            c, mfr, left, y,
-            content_w, _FONT_NAME, sizes["body"],
-            bold_prefix="Manufacturer: ", h_scale=h_scale,
-            nut_top_y=nut_top_y, nut_reserve=nut_reserve,
-            min_y=c_bottom_limit
-        )
-        y = max(y, c_bottom_limit)
-        y -= c_left_gap
+    # 两阶段自适应：字号（max→min_font_pt）→ h_scale（1.0→0.5）
+    best_size, h_scale = find_best_font_size(
+        blocks, flow_regions,
+        font_name=_FONT_NAME,
+        font_name_bold=_FONT_NAME_BOLD,
+        min_size=min_font_pt,
+        max_size=16.0,
+    )
 
-    # --- Address ---
-    if addr and y > c_bottom_limit:
-        y = _draw_wrapped_text(
-            c, addr, left, y,
-            content_w, _FONT_NAME, sizes["body"],
-            bold_prefix="Address: ", h_scale=h_scale,
-            nut_top_y=nut_top_y, nut_reserve=nut_reserve,
-            min_y=c_bottom_limit
-        )
-        y = max(y, c_bottom_limit)
-        y -= c_left_gap
+    # h_scale 由 flow_layout._render_line 的 canvas.transform() 处理
+    # 不需要额外设置 PDF Tz 操作符（否则会双重压缩）
 
-    # --- Imported by ---
-    if imp and y > c_bottom_limit:
-        y = _draw_wrapped_text(
-            c, imp, left, y,
-            content_w, _FONT_NAME, sizes["body"],
-            bold_prefix="Imported by:", h_scale=h_scale,
-            nut_top_y=nut_top_y, nut_reserve=nut_reserve,
-            min_y=c_bottom_limit
-        )
+    # 使用流式引擎渲染 B+C 区域
+    fc = FontConfig(
+        font_name=_FONT_NAME,
+        font_name_bold=_FONT_NAME_BOLD,
+        font_size=best_size,
+        h_scale=h_scale,
+    )
+    layout_flow_content(blocks, flow_regions, fc, canvas=c)
 
-    # L 形正文区域结束，重置横向压缩
-    if h_scale < 1.0:
-        c._code.append('100 Tz')
+    # ============================================================
+    # 固定区域：Net Volume + 营养表 + HALAL
+    # ============================================================
 
-    # --- Net Volume：底部与营养表齐平（baseline 贴 MARGIN，保证 2mm 出血）---
+    # --- Net Volume：底部与营养表齐平 ---
     if net_weight:
         actual_net_fs = sizes["net"]
         text_w = pdfmetrics.stringWidth(net_weight, _FONT_NAME_BOLD, actual_net_fs)
@@ -1248,7 +1162,7 @@ def generate_label_pdf(data: dict, country_cfg: Optional[dict] = None) -> bytes:
         t._code.append('100 Tz')
         c.drawText(t)
 
-    # --- 营养表：固定在右下角（底部与 Net Volume 齐平）---
+    # --- 营养表：固定在右下角 ---
     nut_start_y = bottom + nut_total_h
     _draw_nutrition_table(
         c, data, country_cfg,

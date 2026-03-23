@@ -57,6 +57,7 @@ class FlowRect:
     y: float       # 顶部 y（文字从此处 baseline 开始向下排）
     width: float   # 可用宽度
     height: float  # 可用高度（向下延伸）
+    seamless: bool = False  # True = 从上一个区域无缝衔接（保持 leading 节奏）
 
     @property
     def bottom(self) -> float:
@@ -235,7 +236,11 @@ def layout_flow_content(
             if cur_y - descent < region.bottom:
                 ri += 1
                 if ri < len(flow_regions):
-                    cur_y = flow_regions[ri].y - fc.font_size
+                    new_r = flow_regions[ri]
+                    if not new_r.seamless:
+                        # 默认行为：重置到新区域顶边
+                        cur_y = new_r.y - fc.font_size
+                    # else: seamless=True → 保持 cur_y 连贯（倒L型）
 
     return result
 
@@ -324,19 +329,23 @@ def find_best_font_size(
     h_scale: float = 1.0,
     min_size: float = 4.0,
     max_size: float = 16.0,
-    min_h_scale: float = 0.3,
+    min_h_scale: float = 0.35,
     iterations: int = 20,
 ) -> tuple:
     """
-    两阶段自适应搜索：
+    三阶段自适应搜索：
 
     第一阶段：二分搜索字号（max_size → min_size），h_scale=1.0
     第二阶段：若到 min_size 仍溢出，固定字号=min_size，
              二分搜索 h_scale（1.0 → min_h_scale）
+    第三阶段：若 min_h_scale 仍溢出，固定 h_scale=min_h_scale，
+             继续降低字号到 hard_min（4pt）确保信息完整
 
     Returns:
         (font_size, h_scale)
     """
+    import math
+
     # ---- 第一阶段：搜索字号 ----
     lo, hi = min_size, max_size
     best_size = lo
@@ -357,7 +366,6 @@ def find_best_font_size(
         else:
             hi = mid
 
-    import math
     best_size = math.floor(best_size * 100) / 100
 
     # 检查最小字号是否仍然溢出
@@ -390,7 +398,39 @@ def find_best_font_size(
             hs_hi = hs_mid   # 需要更小 h_scale（更多压缩）
 
     best_hs = math.floor(best_hs * 100) / 100
-    return min_size, best_hs
+
+    # 检查 min_h_scale 是否仍然溢出
+    fc_hs_min = FontConfig(
+        font_name=font_name, font_name_bold=font_name_bold,
+        font_size=min_size, leading_ratio=leading_ratio, h_scale=min_h_scale,
+    )
+    result_hs_min = layout_flow_content(blocks, flow_regions, fc_hs_min)
+
+    if not result_hs_min.overflow:
+        return min_size, best_hs
+
+    # ---- 第三阶段：固定 h_scale=min_h_scale，继续缩小字号 ----
+    # 信息完整性 > 法规字号（标签会显示 warning）
+    hard_min = 4.0
+    lo3, hi3 = hard_min, min_size
+    best3 = lo3
+
+    for _ in range(iterations):
+        mid = (lo3 + hi3) / 2
+        fc = FontConfig(
+            font_name=font_name, font_name_bold=font_name_bold,
+            font_size=mid, leading_ratio=leading_ratio,
+            h_scale=min_h_scale,
+        )
+        result = layout_flow_content(blocks, flow_regions, fc)
+        if not result.overflow:
+            best3 = mid
+            lo3 = mid
+        else:
+            hi3 = mid
+
+    best3 = math.floor(best3 * 100) / 100
+    return best3, min_h_scale
 
 
 # ---------------------------------------------------------------------------

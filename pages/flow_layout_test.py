@@ -86,7 +86,7 @@ LAYOUTS = {
         "desc": "全宽 → 右下营养表避让",
         "regions": [
             FlowRect(x=M, y=TEXT_TOP, width=CONTENT_W, height=TEXT_TOP - (M+NET_H+NUT_H)),
-            FlowRect(x=M, y=M+NET_H+NUT_H, width=LEFT_W, height=NUT_H),
+            FlowRect(x=M, y=M+NET_H+NUT_H, width=LEFT_W, height=NUT_H, seamless=True),
         ],
         "fixed": [
             {"label": "Title",     "x": M,        "y": CH-M-TITLE_H, "w": CONTENT_W, "h": TITLE_H},
