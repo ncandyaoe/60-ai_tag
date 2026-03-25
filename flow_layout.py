@@ -66,10 +66,84 @@ class FlowRect:
 
 
 @dataclass
-class TextBlock:
-    """一个文本块（粗体前缀 + 正文）"""
+class TextSpan:
+    """一个文本切片（带样式信息）"""
     text: str
-    bold_prefix: str = ""
+    bold: bool = False
+    underline: bool = False
+
+@dataclass
+class TextBlock:
+    """一个文本块（由多个可能带样式的切片组成）"""
+    spans: List[TextSpan]
+    
+    # 兼容老接口
+    def __init__(self, text: str = "", bold_prefix: str = ""):
+        self.spans = []
+        if bold_prefix:
+            self.spans.append(TextSpan(text=bold_prefix, bold=True))
+        if text:
+            # 解析 text 中的 markdown 标记
+            self.spans.extend(parse_markdown_text(text))
+
+    @property
+    def full_text(self) -> str:
+        """获取无格式纯文本，用于分词和断行计算"""
+        return "".join(s.text for s in self.spans)
+
+
+def parse_markdown_text(text: str) -> List[TextSpan]:
+    """
+    解析内联 Markdown 样式，支持：
+    **加粗** (bold)
+    __下划线__ (underline)
+    **__加粗加下划线__**
+    返回 TextSpan 列表。
+    """
+    import re
+    spans = []
+    
+    # 匹配 **bold**, __underline__, **__both__** 或 __**both**__
+    # 正则解释:
+    # (?P<bold underline>\*\*__(.*?)__\*\*) -> **__text__**
+    # (?P<underline bold>__\*\*(.*?)\*\*__) -> __**text**__
+    # (?P<bold>\*\*(.*?)\*\*) -> **text**
+    # (?P<underline>__(.*?)__) -> __text__
+    pattern = re.compile(
+        r'(?P<bu>\*\*__(.*?)__\*\*)|'
+        r'(?P<ub>__\*\*(.*?)\*\*__)|'
+        r'(?P<b>\*\*(.*?)\*\*)|'
+        r'(?P<u>__(.*?)__)'
+    )
+    
+    last_end = 0
+    for match in pattern.finditer(text):
+        start, end = match.span()
+        # 1. 添加匹配点之前的普通文本
+        if start > last_end:
+            spans.append(TextSpan(text=text[last_end:start]))
+            
+        # 2. 添加匹配的格式化文本
+        if match.group('bu'):
+            spans.append(TextSpan(text=match.group(2), bold=True, underline=True))
+        elif match.group('ub'):
+            spans.append(TextSpan(text=match.group(4), bold=True, underline=True))
+        elif match.group('b'):
+            spans.append(TextSpan(text=match.group(6), bold=True))
+        elif match.group('u'):
+            spans.append(TextSpan(text=match.group(8), underline=True))
+            
+        last_end = end
+        
+    # 3. 添加剩余普通文本
+    if last_end < len(text):
+        spans.append(TextSpan(text=text[last_end:]))
+        
+    # 如果完全没有匹配到或者本身为空，确保至少有一个 span
+    if not spans and text:
+        spans.append(TextSpan(text=text))
+        
+    return spans
 
 
 @dataclass
@@ -88,6 +162,16 @@ class FontConfig:
         return self.font_size * self.leading_ratio
 
 
+def _get_char_style(spans: List[TextSpan], char_index: int) -> tuple[bool, bool]:
+    """根据全局字符索引，找出该字符是否加粗、是否下划线"""
+    curr_len = 0
+    for span in spans:
+        if curr_len <= char_index < curr_len + len(span.text):
+            return span.bold, span.underline
+        curr_len += len(span.text)
+    return False, False
+
+
 @dataclass
 class LinePlacement:
     """一行文字的放置信息"""
@@ -98,7 +182,8 @@ class LinePlacement:
     font_size: float
     h_scale: float = 1.0
     region_idx: int = 0
-    bold_end: int = 0      # text[:bold_end] 用粗体绘制
+    # 新增对多级 spans 的支持
+    spans: List[TextSpan] = field(default_factory=list)
 
 
 @dataclass
@@ -123,18 +208,6 @@ def layout_flow_content(
 ) -> LayoutResult:
     """
     通用流式矩形布局引擎。
-
-    文本沿 flow_regions 序列从上到下流动排版。
-    当一个矩形排满后，自动溢出到下一个矩形继续。
-
-    Args:
-        blocks:       文本块列表（按显示顺序）
-        flow_regions: 有序矩形序列（文字依次流经）
-        font_config:  字体配置
-        canvas:       ReportLab canvas（传入则渲染，不传则仅估算）
-
-    Returns:
-        LayoutResult: overflow, lines, region_usage, total_lines
     """
     if not flow_regions or not blocks:
         return LayoutResult(region_usage=[0.0] * len(flow_regions))
@@ -147,22 +220,18 @@ def layout_flow_content(
     result = LayoutResult(region_usage=[0.0] * len(flow_regions))
 
     ri = 0                          # 当前矩形索引
-    # baseline = 矩形顶边 - 字号（让字符顶部贴齐矩形顶边）
-    cur_y = flow_regions[0].y - fc.font_size
+    # baseline = 矩形顶边 - 字高（让首行视觉顶部贴齐矩形顶边，主体字母高度约 0.8 * font_size）
+    cur_y = flow_regions[0].y - fc.font_size * 0.8
 
     for bi, block in enumerate(blocks):
-        text = block.text
-        prefix = block.bold_prefix
-        if not text and not prefix:
+        full_text = block.full_text
+        if not full_text:
             continue
 
         # 每个 TextBlock 独占新行（标题用：中英文各自分行）
         if new_line_per_block and bi > 0 and result.total_lines > 0:
-            # 前一个 block 已渲染至少 1 行，强制把 cur_y 推到下一行 baseline
-            pass  # cur_y 已经被上个 block 末尾的 cur_y -= leading 推到新行位置
+            pass  # cur_y 已经被推到新行位置
 
-        full_text = prefix + text
-        prefix_len = len(prefix)
         total_len = len(full_text)
         ptr = 0                     # 当前字符指针
 
@@ -175,75 +244,81 @@ def layout_flow_content(
             region = flow_regions[ri]
 
             # ── 预检查：当前行是否能在当前区域内放下 ──
-            # cur_y 是 baseline，text_bottom = cur_y - descent
             while cur_y - descent < region.bottom:
-                # 检查下一个区域
                 if ri + 1 >= len(flow_regions):
                     result.overflow = True
                     return result
                 next_r = flow_regions[ri + 1]
 
-                if next_r.seamless and next_r.width > region.width and cur_y + fc.font_size > region.bottom:
+                if next_r.seamless and next_r.width > region.width and cur_y + fc.font_size * 0.8 > region.bottom:
                     # ── 延迟切换 ──
-                    # 字形顶部 (cur_y + font_size) 仍高于窄区域底边，
-                    # 说明这一行的字形还会伸入窄区域的高度范围。
-                    # 若此时切换到宽区域，文字从视觉上会侵入 Logo 等"禁飞区"。
-                    # 保持窄宽度，让 descent 安全溢出到紧邻的宽区域。
                     break
                 else:
                     ri += 1
                     region = next_r
                     if not region.seamless:
-                        cur_y = region.y - fc.font_size
-                    # seamless 且 baseline 已低于新区域顶边 → 直接使用
+                        cur_y = region.y - fc.font_size * 0.8
 
-            # 横向压缩时等效宽度更大（每行容纳更多字符）
-            # 减 1pt 安全余量：stringWidth 逐字累加与实际渲染的字距有微小差异
+            # 横向压缩时等效宽度更大
             avail_w = (region.width / eff_h_scale if eff_h_scale < 1.0 else region.width) - 1.0
 
             line_start = ptr
 
-            # 优化：先检查剩余文字能否一行放完
-            remaining = full_text[ptr:]
-            rem_w = _measure_segment(remaining, ptr, prefix_len, fc)
+            # 优化：优先在上一个可断行位置断行 (避免单词截断)
+            line_w = 0.0
+            last_break_ptr = line_start   # 上一个可断行位置
 
-            if rem_w <= avail_w:
-                # 整行放完
-                ptr = total_len
-            else:
-                # 单词级断行：遇到放不下的完整单词，整个移到下一行
-                # 可断行位置：空格、连字符、括号后、逗号后
-                line_w = 0.0
-                last_break_ptr = line_start   # 上一个可断行位置
+            while ptr < total_len:
+                ch = full_text[ptr]
+                is_bold, _ = _get_char_style(block.spans, ptr)
+                ch_font = fc.font_name_bold if is_bold else fc.font_name
+                ch_w = stringWidth(ch, ch_font, fc.font_size)
 
-                while ptr < total_len:
-                    ch = full_text[ptr]
-                    ch_font = fc.font_name_bold if ptr < prefix_len else fc.font_name
-                    ch_w = stringWidth(ch, ch_font, fc.font_size)
-
-                    if line_w + ch_w > avail_w and ptr > line_start:
-                        # 溢出：优先在上一个单词边界断行
-                        if last_break_ptr > line_start:
-                            ptr = last_break_ptr
-                        # else: 单个超长单词，逼不得已字符级截断
+                if line_w + ch_w > avail_w and ptr > line_start:
+                    if last_break_ptr > line_start:
+                        ptr = last_break_ptr
+                        break
+                    else:
+                        # 单个超长单词，字符级截断
                         break
 
-                    line_w += ch_w
-                    ptr += 1
+                line_w += ch_w
+                ptr += 1
 
-                    # 标记可断行位置
-                    # 开括号：在括号 *前* 断行（避免行尾孤立 "(" ）
-                    if ch in ('(', '（'):
-                        last_break_ptr = ptr - 1 if ptr - 1 > line_start else ptr
-                    elif ch in (' ', '-', ')', '）', ',', '，', '/'):
-                        last_break_ptr = ptr
+                # 标记可断行位置
+                if ch in ('(', '（'):
+                    last_break_ptr = ptr - 1 if ptr - 1 > line_start else ptr
+                elif ch in (' ', '-', ')', '）', ',', '，', '/', '、'):
+                    last_break_ptr = ptr
 
             line_text = full_text[line_start:ptr]
             if not line_text:
-                break  # 安全退出（避免死循环）
+                break  # 安全退出
 
-            # 计算本行中粗体字符数
-            bold_end = max(0, min(prefix_len - line_start, len(line_text)))
+            # 提取这一行的 spans
+            line_spans = []
+            curr_text_built = ""
+            curr_bold = None
+            curr_underline = None
+            
+            for i in range(line_start, ptr):
+                char = full_text[i]
+                bold, under = _get_char_style(block.spans, i)
+                if curr_bold is None:
+                    curr_bold = bold
+                    curr_underline = under
+                
+                if bold != curr_bold or under != curr_underline:
+                    if curr_text_built:
+                        line_spans.append(TextSpan(curr_text_built, curr_bold, curr_underline))
+                    curr_text_built = char
+                    curr_bold = bold
+                    curr_underline = under
+                else:
+                    curr_text_built += char
+            
+            if curr_text_built:
+                line_spans.append(TextSpan(curr_text_built, curr_bold, curr_underline))
 
             placement = LinePlacement(
                 text=line_text,
@@ -253,7 +328,7 @@ def layout_flow_content(
                 font_size=fc.font_size,
                 h_scale=eff_h_scale,
                 region_idx=ri,
-                bold_end=bold_end
+                spans=line_spans
             )
             result.lines.append(placement)
             result.total_lines += 1
@@ -265,15 +340,12 @@ def layout_flow_content(
             result.region_usage[ri] = region.y - cur_y
 
             # 检查下一行是否超出当前矩形（含 descender 深度）
-            # cur_y 是下一行 baseline，其 descender 延伸到 cur_y - descent
             if cur_y - descent < region.bottom:
                 if ri + 1 >= len(flow_regions):
-                    pass  # 循环顶部会处理 overflow
+                    pass
                 else:
                     next_r = flow_regions[ri + 1]
                     if next_r.seamless and next_r.width > region.width and cur_y + fc.font_size > region.bottom:
-                        # 延迟切换：字形顶部仍高于窄区域底边，
-                        # 下一轮 pre-check 会再次判断
                         pass
                     elif not next_r.seamless:
                         ri += 1
@@ -290,19 +362,8 @@ def layout_flow_content(
 # 内部工具
 # ---------------------------------------------------------------------------
 
-def _measure_segment(text: str, start_in_full: int, prefix_len: int,
-                     fc: FontConfig) -> float:
-    """测量一段文字的宽度（自动处理粗体/正体混排）"""
-    w = 0.0
-    for i, ch in enumerate(text):
-        idx = start_in_full + i
-        font = fc.font_name_bold if idx < prefix_len else fc.font_name
-        w += stringWidth(ch, font, fc.font_size)
-    return w
-
-
 def _render_line(canvas, line: LinePlacement, fc: FontConfig):
-    """在 canvas 上绘制一行文字（支持粗体前缀混排 + 横向压缩）"""
+    """在 canvas 上绘制一行文字（支持多种字体混合与下划线）"""
     c = canvas
     x, y = line.x, line.y
 
@@ -310,20 +371,22 @@ def _render_line(canvas, line: LinePlacement, fc: FontConfig):
         c.saveState()
         c.transform(line.h_scale, 0, 0, 1, x * (1 - line.h_scale), 0)
 
-    if line.bold_end > 0:
-        bold_part = line.text[:line.bold_end]
-        regular_part = line.text[line.bold_end:]
-
-        c.setFont(fc.font_name_bold, fc.font_size)
-        c.drawString(x, y, bold_part)
-
-        if regular_part:
-            bold_w = stringWidth(bold_part, fc.font_name_bold, fc.font_size)
-            c.setFont(fc.font_name, fc.font_size)
-            c.drawString(x + bold_w, y, regular_part)
-    else:
-        c.setFont(fc.font_name, fc.font_size)
-        c.drawString(x, y, line.text)
+    curr_x = x
+    for span in line.spans:
+        font_name = fc.font_name_bold if span.bold else fc.font_name
+        c.setFont(font_name, fc.font_size)
+        
+        c.drawString(curr_x, y, span.text)
+        span_w = stringWidth(span.text, font_name, fc.font_size)
+        
+        if span.underline:
+            # 简单计算下划线位置，设定在 baseline 之下大约 descender 的 1/2 处
+            # 线宽根据字号适当调整
+            line_y = y - fc.font_size * 0.1
+            c.setLineWidth(fc.font_size * 0.05)
+            c.line(curr_x, line_y, curr_x + span_w, line_y)
+            
+        curr_x += span_w
 
     if line.h_scale < 1.0:
         c.restoreState()
@@ -484,43 +547,120 @@ def find_best_font_size(
 # PLM JSON → TextBlock 转换
 # ---------------------------------------------------------------------------
 
-def plm_to_blocks(data: dict) -> List[TextBlock]:
-    """将 PLM JSON 数据转换为 TextBlock 列表"""
+import re
+
+def _auto_format_ingredients(ingr_text: str, allergens_text: str) -> str:
+    """自动将纯文本配料表转换为 Markdown 富文本：自动前缀加粗 + 自动过敏原下划线"""
+    if not ingr_text:
+        return ""
+    text = ingr_text
+    
+    # 1. 自动前缀加粗 (例如: "[EN] Ingredients:")
+    pattern_prefix1 = r'(\[[A-Z]{2}\]\s*[A-Za-z\u00C0-\u017F]+:)'
+    text = re.sub(pattern_prefix1, r'**\1**', text)
+    
+    # 支持无括号或在 / 之后的前缀 (例如: "Zutaten:" 或 "/ Ingredients:")
+    pattern_prefix2 = r'(^|/\s*)([A-Z][a-z\u00C0-\u017F]+:)'
+    text = re.sub(pattern_prefix2, r'\1**\2**', text)
+    
+    # 2. 自动过敏原标红/下划线
+    if allergens_text:
+        # 清洗拆分
+        tokens = [t.strip() for t in re.split(r'[,;]', allergens_text) if t.strip()]
+        if tokens:
+            # 按长度倒序，防止短词（如 Soy）错误覆盖长词（如 Soybeans）
+            tokens.sort(key=len, reverse=True)
+            escaped = [re.escape(t) for t in tokens]
+            # 强化边界：左右不能是字母（防止把包含该字符串的单词也替换了）
+            pattern_allergens = r'(?<![a-zA-Z\u00C0-\u017F])(' + '|'.join(escaped) + r')(?![a-zA-Z\u00C0-\u017F])'
+            text = re.sub(pattern_allergens, lambda m: f"**__{m.group(1)}__**", text, flags=re.IGNORECASE)
+            
+    return text
+
+def plm_to_blocks(data: dict, target_country: str = "DEFAULT") -> List[TextBlock]:
+    """
+    将 PLM JSON 数据转换为 TextBlock 列表。
+    根据目标国家的配置决定使用单语言（带强前缀）或多语言（读取原始格式）策略。
+    """
+    from country_config import get_country_config
     blocks = []
+    
+    cfg = get_country_config(target_country)
+    is_multi = cfg.get("is_multilingual", False)
 
-    ingr = data.get("ingredients", "").strip()
-    if ingr:
-        blocks.append(TextBlock(text=ingr, bold_prefix="Ingredients: "))
-
-    allergens = data.get("allergens", "").strip()
-    if allergens:
-        blocks.append(TextBlock(text=allergens, bold_prefix="Contains: "))
-
-    storage = data.get("storage", "").strip()
-    if storage:
-        blocks.append(TextBlock(text=storage))
-
-    prod_date = data.get("production_date", "").strip()
-    best_before = data.get("best_before", "").strip()
-    if prod_date or best_before:
-        date_str = f"{prod_date} / Best Before: {best_before}" if best_before else prod_date
-        blocks.append(TextBlock(text=date_str, bold_prefix="Production date: "))
-
-    origin = data.get("origin", "").strip()
-    if origin:
-        blocks.append(TextBlock(text=origin, bold_prefix="Product of "))
-
-    mfr = data.get("manufacturer", "").strip()
-    if mfr:
-        blocks.append(TextBlock(text=mfr, bold_prefix="Manufacturer: "))
-
-    addr = data.get("manufacturer_address", "").strip()
-    if addr:
-        blocks.append(TextBlock(text=addr, bold_prefix="Address: "))
-
-    imp = data.get("importer_info", "").strip()
-    if imp:
-        blocks.append(TextBlock(text=imp, bold_prefix="Imported by: "))
+    if is_multi:
+        # ------- 多语言模式 -------
+        ingr = data.get("ingredients", "").strip()
+        allergens = data.get("allergens", "").strip()
+        if ingr:
+            ingr = _auto_format_ingredients(ingr, allergens)
+            blocks.append(TextBlock(text=ingr))
+            
+        # 多语言模式下，过敏原通常内置在 ingredients 中并用 Markdown 加粗标记了
+        # 所以跳过 allergens 的单独渲染
+        
+        storage = data.get("storage", "").strip()
+        if storage:
+            blocks.append(TextBlock(text=storage))
+            
+        prod_date = data.get("production_date", "").strip()
+        best_before = data.get("best_before", "").strip()
+        # 假设在多语言版里，长长的前缀已经在 string 内部写好了（如 **Best Before / ...:**）
+        if prod_date or best_before:
+            date_str = f"{prod_date}  {best_before}" if (prod_date and best_before) else (prod_date or best_before)
+            blocks.append(TextBlock(text=date_str.strip()))
+            
+        origin = data.get("origin", "").strip()
+        if origin:
+            blocks.append(TextBlock(text=origin))
+            
+        mfr = data.get("manufacturer", "").strip()
+        if mfr:
+            blocks.append(TextBlock(text=mfr))
+            
+        addr = data.get("manufacturer_address", "").strip()
+        if addr:
+            blocks.append(TextBlock(text=addr))
+            
+        imp = data.get("importer_info", "").strip()
+        if imp:
+            blocks.append(TextBlock(text=imp))
+            
+    else:
+        # ------- 单语言模式 (兼容老的加粗前缀) -------
+        ingr = data.get("ingredients", "").strip()
+        if ingr:
+            blocks.append(TextBlock(text=ingr, bold_prefix="Ingredients: "))
+    
+        allergens = data.get("allergens", "").strip()
+        if allergens:
+            blocks.append(TextBlock(text=allergens, bold_prefix="Contains: "))
+    
+        storage = data.get("storage", "").strip()
+        if storage:
+            blocks.append(TextBlock(text=storage))
+    
+        prod_date = data.get("production_date", "").strip()
+        best_before = data.get("best_before", "").strip()
+        if prod_date or best_before:
+            date_str = f"{prod_date} / Best Before: {best_before}" if best_before else prod_date
+            blocks.append(TextBlock(text=date_str, bold_prefix="Production date: "))
+    
+        origin = data.get("origin", "").strip()
+        if origin:
+            blocks.append(TextBlock(text=origin, bold_prefix="Product of "))
+    
+        mfr = data.get("manufacturer", "").strip()
+        if mfr:
+            blocks.append(TextBlock(text=mfr, bold_prefix="Manufacturer: "))
+    
+        addr = data.get("manufacturer_address", "").strip()
+        if addr:
+            blocks.append(TextBlock(text=addr, bold_prefix="Address: "))
+    
+        imp = data.get("importer_info", "").strip()
+        if imp:
+            blocks.append(TextBlock(text=imp, bold_prefix="Imported by: "))
 
     return blocks
 

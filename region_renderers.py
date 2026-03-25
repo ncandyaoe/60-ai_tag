@@ -54,7 +54,15 @@ def render_content(
     Returns:
         (font_size, h_scale) — content 的自适应字号和横向压缩比
     """
-    blocks = plm_to_blocks(data)
+    # 查找对应的 country_code 进行传递
+    from country_config import COUNTRY_REGISTRY
+    target_country = "DEFAULT"
+    for code, cfg in COUNTRY_REGISTRY.items():
+        if cfg == country_cfg:
+            target_country = code
+            break
+            
+    blocks = plm_to_blocks(data, target_country=target_country)
 
     # 法规最小字号
     min_mm = country_cfg.get("min_font_height_mm", 1.2)
@@ -338,22 +346,69 @@ def render_logo(
 
 def render_eco_icons(
     canvas: Canvas,
-    region: TemplateRegion,
+    slots: list,
     data: dict,
+    country_cfg: Optional[dict] = None,
 ):
     """
-    环保标渲染器（占位）。
+    环保标渲染器 —— 每个槽位独立渲染一个 PNG 图标。
 
-    在 region 指定的矩形内渲染环保标图标。
-    当前为占位实现，后续根据具体需求完善。
+    slots[i] 与 country_cfg["eco_icons"][i] 一一配对。
+    如果槽位数 > 图标数，多余的槽位留空。
+    如果图标数 > 槽位数，多余的图标被忽略。
 
     Args:
-        canvas: ReportLab Canvas
-        region: 环保标的 TemplateRegion
-        data:   PLM 数据（可能含 eco_icons 列表）
+        canvas:      ReportLab Canvas
+        slots:       List[TemplateRegion]，按从左到右排序
+        data:        PLM 数据（预留给产品级别的环保标选择）
+        country_cfg: 国家法规配置（含 eco_icons 文件名列表）
     """
-    # TODO: 实现环保标渲染
-    # eco_icons = data.get("eco_icons", [])
-    # for icon in eco_icons:
-    #     canvas.drawImage(icon["path"], ...)
-    pass
+    eco_icon_names = (country_cfg or {}).get("eco_icons", [])
+    if not eco_icon_names or not slots:
+        return
+
+    # 定位 static/eco_icons/ 目录
+    _this_dir = os.path.dirname(os.path.abspath(__file__))
+    eco_dir = os.path.join(_this_dir, "static", "eco_icons")
+
+    # 逐槽渲染
+    for i, slot in enumerate(slots):
+        if i >= len(eco_icon_names):
+            break  # 没有更多图标了
+
+        path = os.path.join(eco_dir, eco_icon_names[i])
+        if not os.path.exists(path):
+            continue
+
+        # 读取图标原始尺寸
+        from PIL import Image as PILImage
+        img = PILImage.open(path)
+        img_w, img_h = img.width, img.height
+        img.close()
+
+        # 等比缩放到槽位内（fit 模式），移除 padding 以最大化显示
+        avail_w = slot.width
+        avail_h = slot.height
+        if avail_w <= 0 or avail_h <= 0:
+            continue
+
+        aspect = img_w / img_h
+        # 先尝试按高度填满
+        draw_h = avail_h
+        draw_w = draw_h * aspect
+        # 如果宽度超出，改按宽度填满
+        if draw_w > avail_w:
+            draw_w = avail_w
+            draw_h = draw_w / aspect
+
+        # 在槽位中居中
+        slot_bottom = slot.y - slot.height
+        x = slot.x + (slot.width - draw_w) / 2
+        y = slot_bottom + (slot.height - draw_h) / 2
+
+        canvas.drawImage(
+            path, x, y,
+            width=draw_w, height=draw_h,
+            preserveAspectRatio=True,
+            mask='auto',
+        )

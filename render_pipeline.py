@@ -108,8 +108,11 @@ def _draw_region_overlay(c, template: TemplateConfig):
     for i, r in enumerate(template.content_rects):
         suffix = f" R{i+1}" if len(template.content_rects) > 1 else ""
         items.append((f"content", f"Content{suffix}", r))
+    for i, r in enumerate(template.eco_icon_rects):
+        suffix = f" {i+1}" if len(template.eco_icon_rects) > 1 else ""
+        items.append(("eco_icons", f"Eco{suffix}", r))
     # 单矩形区域
-    for key in ("nut_table", "net_volume", "logo", "eco_icons"):
+    for key in ("nut_table", "net_volume", "logo"):
         region = getattr(template, key, None)
         if region:
             items.append((key, _REGION_LABELS[key], region))
@@ -237,8 +240,8 @@ def render_label(
         render_net_volume(c, template.net_volume, data)
 
     # 环保标
-    if template.eco_icons:
-        render_eco_icons(c, template.eco_icons, data)
+    if template.eco_icon_rects:
+        render_eco_icons(c, template.eco_icon_rects, data, country_cfg=country_cfg)
 
     # HALAL 标识
     if data.get("is_halal") and template.content:

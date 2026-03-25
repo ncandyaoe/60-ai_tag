@@ -193,21 +193,21 @@ PLM_EXAMPLE_2 = {
         ]
     }
 }
-# 场景3：竖版标签（50×120mm）
+# 场景3：竖版标签（50×120mm），多语言 Markdown 测试
 PLM_EXAMPLE_3 = {
     "product_name_en": "[EN] 0 MUSHROOM DARK SOY SAUCE / [NL] 0 CHAMPIGNON DONKERE SOJASAUS / [ES] 0 SALSA DE SOYA OSCURA DE SETA DE PAJA / [DE] 0 SOJASAUCE MIT PILZGESCHMACK / [FR] 0 SAUCE DE SOJA AU CHAMPIGNON",
     "product_name_cn": "0草菇老抽",
     "net_weight": "500 mL",
-    "ingredients": "[EN] Ingredients: Water, Soybeans (23%), Sugar, Salt, Wheat(Gluten)(11%), Mushroom Extract(0.002%). / [NL] Ingrediënten: Water, Sojabonen (23%), Suiker, Zout, Tarwe(Gluten)(11%), Paddenstoelenextract (0.002%). / [ES]Ingredientes: Agua, Soja (23%), Azúcar, Sal, Trigo(Gluten)(11%), Jugo de Seta de Paja(0.002%). / [DE] Zutaten: Wasser, Sojabohnen (23%), Zucker, Salz, Weizen(Gluten)(11%), Hefeextrakt (0.002%). / [FR] Ingrédients:Eau, Soja (23%), Sucre, Sel, Blé(Gluten)(11%), Extrait de Champignon (0.002%).",
-    "allergens": "", 
-    "storage": "Store in a cool, dry place.Please keep in refrigerator after opening and consume as soon as possible. / Bewaren op een koele, droge plaats. Na opening in de koelkast bewaren en zo snel mogelijk consumeren. / Conservar en un lugar fresco y seco. Conservar en el frigorifico una vez abierto y consumir lo antes posible. / Kühl und trocken lagern. Nach dem Öffnen bitte im Kühlschrank aufbewahren und schnellstmöglich verbrauchen. / Conserver dans un endroit frais et sec.Veuillez conserver au réfrigérateur après ouverture et consommer dès que possible.",
+    "ingredients": "[EN] Ingredients: Water, Soybeans (23%), Sugar, Salt, Wheat(Gluten)(11%), Mushroom Extract(0.002%). / [NL] Ingrediënten: Water, Sojabonen (23%), Suiker, Zout, Tarwe(Gluten)(11%), Paddenstoelenextract (0.002%). / [ES] Ingredientes: Agua, Soja (23%), Azúcar, Sal, Trigo(Gluten)(11%), Jugo de Seta de Paja(0.002%). / [DE] Zutaten: Wasser, Sojabohnen (23%), Zucker, Salz, Weizen(Gluten)(11%), Hefeextrakt (0.002%). / [FR] Ingrédients: Eau, Soja (23%), Sucre, Sel, Blé(Gluten)(11%), Extrait de Champignon (0.002%).",
+    "allergens": "Soybeans, Wheat(Gluten), Sojabonen, Tarwe(Gluten), Soja, Trigo(Gluten), Sojabohnen, Weizen(Gluten), Blé(Gluten)", 
+    "storage": "**Storage / Bewaren / Conservar / Lagerung / Stockage:** Store in a cool, dry place.Please keep in refrigerator after opening and consume as soon as possible. / Bewaren op een koele, droge plaats. Na opening in de koelkast bewaren en zo snel mogelijk consumeren. / Conservar en un lugar fresco y seco. Conservar en el frigorifico una vez abierto y consumir lo antes posible. / Kühl und trocken lagern. Nach dem Öffnen bitte im Kühlschrank aufbewahren und schnellstmöglich verbrauchen. / Conserver dans un endroit frais et sec.Veuillez conserver au réfrigérateur après ouverture et consommer dès que possible.",
     "usage": "", 
     "production_date": "",
-    "best_before": "Best before / Ten minste houdbaar tot / Consumir preferentemente antes del / Mindestens haltbar bis / À consommer de préférence avant le: See the package / Zie verpakking / Ver envase / Siehe verpackung / Voir emballage (DD/MM/YYYY).",
-    "origin": "Product of China / Product uit China / Producto de China / Produkt aus China / Produit de Chine",
+    "best_before": "**Best before / Ten minste houdbaar tot / Consumir preferentemente antes del / Mindestens haltbar bis / À consommer de préférence avant le:** See the package / Zie verpakking / Ver envase / Siehe verpackung / Voir emballage (DD/MM/YYYY).",
+    "origin": "**Origin:** Product of China / Product uit China / Producto de China / Produkt aus China / Produit de Chine",
     "manufacturer": "", 
     "manufacturer_address": "",
-    "importer_info": "Importer/Importeur/Importador/Importeur/Importateur: JINGDONG RETAIL (NETHERLANDS) B.V.\nDa Vincistraat 5, 2652XE, Berkel en Rodenrijs, The Netherlands",
+    "importer_info": "**Importer / Importeur / Importador / Importateur:** JINGDONG RETAIL (NETHERLANDS) B.V.\nDa Vincistraat 5, 2652XE, Berkel en Rodenrijs, The Netherlands",
     "target_country": "NL",
     "nutrition": {"serving_size": "100mL", "table_data": [
         {"name": "Energy", "per_serving": "706 kJ / 167 kcal"},
@@ -226,7 +226,7 @@ PLM_EXAMPLE_4 = {
     "product_name_cn": "特级黄豆蚝油",
     "net_weight": "725 g",
     "ingredients": "[EN] Ingredients: Water, Sugar, Oyster Extract(11%) (Oyster, Water, Salt), Salt, Modified Corn Starch, Flavour Enhancer (Monosodium Glutamate), Wheat Flour, Colour (Caramel I). / [NL] Ingrediënten: Water, Suiker, Oesterextract (11%) (Oester, Water, Zout), Zout, Gemodificeerd maïszetmeel, Smaakversterker (Mononatriumglutamaat), Tarwebloem, Kleurstof (Karamel I). / [ES] Ingredientes: Agua, Azúcar, Extracto de ostra (11%) (Ostra, Agua, Sal), Sal, Almidón de maíz modificado, Potenciador del sabor (Glutamato monosódico), Harina de trigo, Colorante (Caramelo I). / [DE] Zutaten: Wasser, Zucker, Austernextrakt (11%) (Auster, Wasser, Salz), Salz, Modifizierte Maisstärke, Geschmacksverstärker (Mononatriumglutamat), Weizenmehl, Farbstoff (Karamell I). / [FR] Ingrédients: Eau, Sucre, Extrait d'huître (11%) (Huître, Eau, Sel), Sel, Amidon de maïs modifié, Exhausteur de goût (Glutamate monosodique), Farine de blé, Colorant (Caramel I).",
-    "allergens": "Allergens: Contains Oyster(Molluscs) and Wheat.", 
+    "allergens": "Oyster, Wheat, Oester, Tarwe, Ostra, Trigo, Auster, Weizen, Huître, Blé", 
     "storage": "Store in a cool, dry place. Please keep in refrigerator after opening.",
     "usage": "Use as a dip, marinade or stir-fry sauce.", 
     "production_date": "",
@@ -403,7 +403,7 @@ with col2:
             # 使用固定提供给设计师的那个竖版老抽模板
             # 实际场景可根据传入参数动态获取模板路径
             # relative path to root: 
-            ai_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "0-需求文档", "1-竖版标签", "荷兰0草老", "25500015414 500mL荷兰京东国际0草菇老抽小标签(50x120mm) 202510-02.ai")
+            ai_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "0-需求文档", "1-竖版标签", "荷兰0草老", "多环保标-25500015414 500mL荷兰京东国际0草菇老抽小标签(50x120mm) 202510-02.ai")
             
             if not os.path.exists(ai_path):
                 st.error(f"找不到模板文件: {ai_path}")

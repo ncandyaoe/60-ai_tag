@@ -55,11 +55,12 @@ class TemplateConfig:
     nut_table: Optional[TemplateRegion] = None
     net_volume: Optional[TemplateRegion] = None
     logo: Optional[TemplateRegion] = None
-    eco_icons: Optional[TemplateRegion] = None
 
     # L 型/多矩形区域用 List[TemplateRegion]（按 y 从上到下排序）
     title_rects: List[TemplateRegion] = field(default_factory=list)
     content_rects: List[TemplateRegion] = field(default_factory=list)
+    # 环保标：每个青色矩形 = 一个图标槽位，按从左到右排序
+    eco_icon_rects: List[TemplateRegion] = field(default_factory=list)
 
     @property
     def title(self) -> Optional[TemplateRegion]:
@@ -75,6 +76,13 @@ class TemplateConfig:
             return None
         return _bounding_box(self.content_rects)
 
+    @property
+    def eco_icons(self) -> Optional[TemplateRegion]:
+        """兼容旧接口：返回所有环保标槽位的 bounding box"""
+        if not self.eco_icon_rects:
+            return None
+        return _bounding_box(self.eco_icon_rects)
+
     def summary(self) -> str:
         """输出各区域的概要信息"""
         lines = [
@@ -83,7 +91,7 @@ class TemplateConfig:
             f"({self.page_width/72*25.4:.1f} × {self.page_height/72*25.4:.1f} mm)",
         ]
         # 多矩形区域
-        for name in ("title_rects", "content_rects"):
+        for name in ("title_rects", "content_rects", "eco_icon_rects"):
             rects = getattr(self, name)
             if rects:
                 lines.append(f"  {name:16s}: {len(rects)} 个矩形")
@@ -92,7 +100,7 @@ class TemplateConfig:
             else:
                 lines.append(f"  {name:16s}: (未检测到)")
         # 简单矩形区域
-        for name in ("nut_table", "net_volume", "logo", "eco_icons"):
+        for name in ("nut_table", "net_volume", "logo"):
             region = getattr(self, name)
             if region:
                 lines.append(f"  {name:16s}: {region}")
@@ -304,10 +312,12 @@ def extract_template_regions(ai_path: str) -> TemplateConfig:
         source_file=ai_path,
     )
 
-    # 多矩形区域（L 型支持）
+    # 多矩形区域（L 型支持）—— 同色取面积最大的一组
     multi_rect_names = {"title", "content"}
+    # 累积多矩形区域 —— 同色的每个矩形单独保留
+    accum_rect_names = {"eco_icons"}
     # 简单矩形区域
-    simple_rect_names = {"nut_table", "net_volume", "eco_icons", "logo"}
+    simple_rect_names = {"nut_table", "net_volume", "logo"}
 
     for d in page.get_drawings():
         fill = d.get("fill")
@@ -323,15 +333,18 @@ def extract_template_regions(ai_path: str) -> TemplateConfig:
             continue
 
         if region_name in multi_rect_names:
-            # 分解多边形为矩形列表
+            # 分解多边形为矩形列表（取面积最大的一组）
             rects = _polygon_to_rects(d["items"], H)
             attr = f"{region_name}_rects"
             existing = getattr(config, attr)
-            # 保留面积最大的那组（同色可能有多个绘图对象）
             new_area = sum(r.width * r.height for r in rects)
             old_area = sum(r.width * r.height for r in existing)
             if new_area > old_area:
                 setattr(config, attr, rects)
+        elif region_name in accum_rect_names:
+            # 累积：每个同色矩形单独保留（如多个环保标槽位）
+            rects = _polygon_to_rects(d["items"], H)
+            config.eco_icon_rects.extend(rects)
         else:
             # 简单矩形
             rects = _polygon_to_rects(d["items"], H)
@@ -343,6 +356,10 @@ def extract_template_regions(ai_path: str) -> TemplateConfig:
                     setattr(config, region_name, region)
 
     doc.close()
+
+    # 环保标槽位按从左到右排序（x 坐标升序）
+    config.eco_icon_rects.sort(key=lambda r: r.x)
+
     return config
 
 
