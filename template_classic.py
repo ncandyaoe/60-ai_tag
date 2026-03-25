@@ -38,8 +38,7 @@ _NUT_TITLE_ROW_H = _NUT_TITLE_FS + 4
 RIGHT_COL_RATIO = 0.62
 COL_GAP = 4             # 内容与营养表间距
 
-TITLE_ZONE_H_DEFAULT = 35  # 默认标题预留高度（首轮估算用，足够 3 行 11pt）
-TITLE_RATIO = 1.1              # 标题字号 = content_font_size × 1.1
+TITLE_ZONE_H_DEFAULT = 35  # 默认标题预留高度（足够 3 行 11pt）
 TITLE_LEADING = 1.15           # 标题行距比例
 
 
@@ -61,23 +60,14 @@ def _calc_nut_height(data: dict) -> float:
 # ---------------------------------------------------------------------------
 def build_classic_config(
     data: dict,
-    content_font_size: float = 0,
 ) -> TemplateConfig:
     """
     根据 PLM 数据动态构建经典 70×69mm 模板的 TemplateConfig。
 
     营养表高度取决于数据行数，因此 nut_table / content 区域需要动态计算。
-    content_font_size 可选，用于计算精确的标题区域高度（两轮迭代）。
+    标题区域已与 content 完全解耦，使用固定预留高度。
     """
-    # ── 标题区域高度 ──
-    if content_font_size > 0:
-        # 精确模式：根据实际 content 字号计算标题需求
-        title_fs = content_font_size * TITLE_RATIO
-        title_line_h = title_fs * TITLE_LEADING
-        # 预留 3 行（大部分标题 2 行，留裕度）
-        TITLE_ZONE_H = title_line_h * 3 + 2
-    else:
-        TITLE_ZONE_H = TITLE_ZONE_H_DEFAULT
+    TITLE_ZONE_H = TITLE_ZONE_H_DEFAULT
     left   = MARGIN
     right  = LABEL_W - MARGIN
     top    = LABEL_H - MARGIN

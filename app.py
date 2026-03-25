@@ -294,6 +294,7 @@ TEMPLATE_OPTIONS = {
 
 selected_template_name = st.selectbox("📏 选择物理标签模板：", list(TEMPLATE_OPTIONS.keys()))
 selected_template = TEMPLATE_OPTIONS[selected_template_name]
+show_regions = st.checkbox("🔍 显示区域图层", value=False, help="叠加彩色区域边界，用于调试布局")
 
 st.markdown("---")
 
@@ -362,26 +363,14 @@ with col2:
                 st.success(compliance["message"])
 
             # --------------------------------------------------
-            # 使用新引擎渲染经典标签（两轮迭代消除标题/内容重叠）
+            # 使用新引擎渲染经典标签（标题与内容完全解耦）
             # --------------------------------------------------
             from template_classic import build_classic_config
-            from region_renderers import render_content
             country_cfg = get_country_config(cc)
 
-            # Pass 1: 用宽裕默认标题区 → 得到 content_font_size
-            tmpl_pass1 = build_classic_config(data)
-            content_flowrects_p1 = [
-                FlowRect(x=r.x, y=r.y, width=r.width, height=r.height)
-                for r in tmpl_pass1.content_rects
-            ]
-            content_fs, _ = render_content(
-                canvas=None, regions=content_flowrects_p1,
-                data=data, country_cfg=country_cfg,
-            )
-
-            # Pass 2: 用实际 content_font_size 精确计算标题区高度
-            classic_tmpl = build_classic_config(data, content_font_size=content_fs)
-            pdf_bytes = render_label(classic_tmpl, data, country_cfg)
+            # 构建经典模板（标题与内容已完全解耦，单次构建即可）
+            classic_tmpl = build_classic_config(data)
+            pdf_bytes = render_label(classic_tmpl, data, country_cfg, show_regions=show_regions)
 
             # PNG 预览
             png_b64 = pdf_to_png_base64(pdf_bytes, dpi=216)
@@ -420,7 +409,7 @@ with col2:
                 st.error(f"找不到模板文件: {ai_path}")
             else:
                 cfg_tmpl = extract_template_regions(ai_path)
-                pdf_bytes = render_label(cfg_tmpl, data, country_cfg)
+                pdf_bytes = render_label(cfg_tmpl, data, country_cfg, show_regions=show_regions)
                 
                 # 生成 PNG 预览 (高分屏 216 DPI)
                 png_b64 = pdf_to_png_base64(pdf_bytes, dpi=216)

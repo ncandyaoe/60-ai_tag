@@ -118,7 +118,8 @@ def layout_flow_content(
     blocks: List[TextBlock],
     flow_regions: List[FlowRect],
     font_config: FontConfig,
-    canvas=None
+    canvas=None,
+    new_line_per_block: bool = False,
 ) -> LayoutResult:
     """
     通用流式矩形布局引擎。
@@ -149,11 +150,16 @@ def layout_flow_content(
     # baseline = 矩形顶边 - 字号（让字符顶部贴齐矩形顶边）
     cur_y = flow_regions[0].y - fc.font_size
 
-    for block in blocks:
+    for bi, block in enumerate(blocks):
         text = block.text
         prefix = block.bold_prefix
         if not text and not prefix:
             continue
+
+        # 每个 TextBlock 独占新行（标题用：中英文各自分行）
+        if new_line_per_block and bi > 0 and result.total_lines > 0:
+            # 前一个 block 已渲染至少 1 行，强制把 cur_y 推到下一行 baseline
+            pass  # cur_y 已经被上个 block 末尾的 cur_y -= leading 推到新行位置
 
         full_text = prefix + text
         prefix_len = len(prefix)
@@ -368,21 +374,27 @@ def find_best_font_size(
     iterations: int = 20,
 ) -> tuple:
     """
-    三阶段自适应搜索：
+    三阶段自适应搜索（优先不压缩）：
 
-    第一阶段：二分搜索字号（max_size → min_size），h_scale=1.0
-    第二阶段：若到 min_size 仍溢出，固定字号=min_size，
+    第一阶段：二分搜索字号（max_size → hard_min=4pt），h_scale=1.0
+             优先找到最大的不压缩字号。如果结果 < min_size，标签会合规警告，
+             但文字依然保持正常宽度，不会被压扁。
+    第二阶段：若到 4pt 仍溢出（极端场景），固定字号=min_size，
              二分搜索 h_scale（1.0 → min_h_scale）
     第三阶段：若 min_h_scale 仍溢出，固定 h_scale=min_h_scale，
-             继续降低字号到 hard_min（4pt）确保信息完整
+             继续降低字号到 4pt 确保信息完整
 
     Returns:
         (font_size, h_scale)
     """
     import math
 
-    # ---- 第一阶段：搜索字号 ----
-    lo, hi = min_size, max_size
+    hard_min = 4.0  # 绝对底线
+
+    # ---- 第一阶段：搜索字号（优先不压缩） ----
+    # 搜索范围扩展到 [hard_min, max_size]，而不是 [min_size, max_size]
+    # 这样即使法规最小字号放不下，也会继续缩小字号而不是跳到横向压缩
+    lo, hi = hard_min, max_size
     best_size = lo
 
     for _ in range(iterations):
@@ -403,10 +415,10 @@ def find_best_font_size(
 
     best_size = math.floor(best_size * 100) / 100
 
-    # 检查最小字号是否仍然溢出
+    # 检查 hard_min 在 h_scale=1.0 下是否仍溢出
     fc_min = FontConfig(
         font_name=font_name, font_name_bold=font_name_bold,
-        font_size=min_size, leading_ratio=leading_ratio, h_scale=1.0,
+        font_size=hard_min, leading_ratio=leading_ratio, h_scale=1.0,
     )
     result_min = layout_flow_content(blocks, flow_regions, fc_min)
 
@@ -415,6 +427,7 @@ def find_best_font_size(
         return best_size, 1.0
 
     # ---- 第二阶段：固定 min_size，搜索 h_scale ----
+    # 只有当 4pt 在 h_scale=1.0 下都放不下时才会到这里（极端场景）
     hs_lo, hs_hi = min_h_scale, 1.0
     best_hs = hs_lo
 
@@ -446,7 +459,6 @@ def find_best_font_size(
 
     # ---- 第三阶段：固定 h_scale=min_h_scale，继续缩小字号 ----
     # 信息完整性 > 法规字号（标签会显示 warning）
-    hard_min = 4.0
     lo3, hi3 = hard_min, min_size
     best3 = lo3
 
@@ -521,36 +533,26 @@ def layout_title(
     text_en: str,
     text_cn: str,
     flow_regions: List[FlowRect],
-    content_font_size: float,
     font_name: str = _FONT_NAME,
     font_name_bold: str = _FONT_NAME_BOLD,
-    title_ratio: float = 1.1,
     max_size: float = 24.0,
     leading_ratio: float = 1.15,
     country_code: str = "DEFAULT",
     canvas=None,
 ) -> tuple:
     """
-    标题自适应布局引擎。
+    标题自适应布局引擎（已与 content 完全解耦）。
 
-    核心策略：最少压缩优先（maximise h_scale）。
-      1. 从 max_size 向下扫描每个字号（步长 0.5pt）
-      2. 对每个字号，先测试 h_scale=1.0（无压缩）
-         - 不溢出 → 记录 (fs, 1.0)
-         - 溢出 → 二分搜索最大 h_scale
-      3. 在所有 (字号 × h_scale) 中，取 h_scale 最大的
-         - h_scale 相同时，取字号更大的
+    核心策略：基于模板容量的启发式 A/B 竞争。
+      - 变体 A (显式分行)：强制中英文各占一行，优先保层级感。
+      - 变体 B (流式拼接)：中英文融为一段，优先填满空间。
 
-    两遍搜索策略：
-      Pass 1: min_size = content_font_size × title_ratio（优先）
-      Pass 2: 若 Pass 1 的 h_scale < 0.7（压缩过重），放宽到
-              min_size = 国家法规最小字号，重新搜索
+      标题字号的唯一硬约束 = 各国法规 aoe 最低字高（与 content 一致）。
+      利用模板预留的高度计算预期最大行容量（expected_max_lines）。
 
     Args:
         text_en / text_cn:  产品名
         flow_regions:       标题区域（矩形或 L 型）
-        content_font_size:  内容区字号
-        title_ratio:        首选 min = content_fs × title_ratio
         country_code:       国家代码（用于法规最小字号）
         canvas:             ReportLab canvas
 
@@ -562,30 +564,33 @@ def layout_title(
     if not text_en and not text_cn:
         return 0.0, 1.0, LayoutResult(region_usage=[0.0] * len(flow_regions))
 
-    preferred_min = content_font_size * title_ratio
     regulatory_min = get_min_font_pt(country_code)
-    min_size = preferred_min
-
-    # ── 构造两种 TextBlock 方案 ──
-    block_variants = []
-
-    blocks_sep = []
-    if text_en:
-        blocks_sep.append(TextBlock(text="", bold_prefix=text_en))
-    if text_cn:
-        blocks_sep.append(TextBlock(text="", bold_prefix=text_cn))
-    if blocks_sep:
-        block_variants.append(blocks_sep)
-
-    if text_en and text_cn:
-        merged = text_en + "  " + text_cn
-        block_variants.append([TextBlock(text="", bold_prefix=merged)])
 
     total_height = sum(r.height for r in flow_regions)
+    ideal_line_h = regulatory_min * leading_ratio
+    expected_max_lines = total_height / ideal_line_h if ideal_line_h > 0 else 0
 
-    def _search_best(min_sz: float):
-        """扫描所有字号 [max_size → min_sz]，找 h_scale 最大的方案。"""
-        b_fs, b_hs, b_blk = 0.0, 0.0, block_variants[0]
+    # ── 变体 A: 显式双行 ──
+    variant_a = []
+    if text_en: variant_a.append(TextBlock(text="", bold_prefix=text_en))
+    if text_cn: variant_a.append(TextBlock(text="", bold_prefix=text_cn))
+
+    # ── 变体 B: 连续流式拼接 ──
+    variant_b = []
+    if text_en and text_cn:
+        merged = text_en + "  " + text_cn
+        variant_b.append(TextBlock(text="", bold_prefix=merged))
+    elif text_en:
+        variant_b.append(TextBlock(text="", bold_prefix=text_en))
+    elif text_cn:
+        variant_b.append(TextBlock(text="", bold_prefix=text_cn))
+
+    def _search_variant(blocks, min_sz: float, min_hs: float, new_line: bool):
+        """扫描所有字号 [max_size → min_sz]，找纵向使用最多的方案。"""
+        b_fs, b_hs = 0.0, 0.0
+        b_res = None
+        b_used_h = 0.0
+        b_score = 0.0
 
         sizes = []
         s = max_size
@@ -596,60 +601,144 @@ def layout_title(
             sizes.append(round(min_sz, 1))
         sizes.sort(reverse=True)
 
-        for blocks in block_variants:
-            for fs in sizes:
-                if fs < min_sz - 0.01:
+        for fs in sizes:
+            if fs < min_sz - 0.01:
+                continue
+            leading = fs * leading_ratio
+            if leading <= 0 or total_height / leading < 1:
+                continue
+
+            fc = FontConfig(
+                font_name=font_name, font_name_bold=font_name_bold,
+                font_size=fs, leading_ratio=leading_ratio, h_scale=1.0,
+            )
+            result = layout_flow_content(blocks, flow_regions, fc, new_line_per_block=new_line)
+            if not result.overflow:
+                hs = 1.0
+            else:
+                hs_lo, hs_hi = min_hs, 1.0
+                hs = None
+                for _ in range(20):
+                    mid = (hs_lo + hs_hi) / 2
+                    fc2 = FontConfig(
+                        font_name=font_name, font_name_bold=font_name_bold,
+                        font_size=fs, leading_ratio=leading_ratio, h_scale=mid,
+                    )
+                    r2 = layout_flow_content(blocks, flow_regions, fc2, new_line_per_block=new_line)
+                    if not r2.overflow:
+                        hs = mid
+                        hs_lo = mid
+                    else:
+                        hs_hi = mid
+                if hs is None:
                     continue
-                leading = fs * leading_ratio
-                if leading <= 0 or total_height / leading < 1:
-                    continue
+                hs = math.floor(hs * 100) / 100
 
-                fc = FontConfig(
-                    font_name=font_name, font_name_bold=font_name_bold,
-                    font_size=fs, leading_ratio=leading_ratio, h_scale=1.0,
-                )
-                result = layout_flow_content(blocks, flow_regions, fc)
-                if not result.overflow:
-                    hs = 1.0
-                else:
-                    hs_lo, hs_hi = 0.1, 1.0
-                    hs = None
-                    for _ in range(20):
-                        mid = (hs_lo + hs_hi) / 2
-                        fc2 = FontConfig(
-                            font_name=font_name, font_name_bold=font_name_bold,
-                            font_size=fs, leading_ratio=leading_ratio, h_scale=mid,
-                        )
-                        r2 = layout_flow_content(blocks, flow_regions, fc2)
-                        if not r2.overflow:
-                            hs = mid
-                            hs_lo = mid
-                        else:
-                            hs_hi = mid
-                    if hs is None:
-                        continue
-                    hs = math.floor(hs * 100) / 100
+            # 评估最终方案
+            fc_final = FontConfig(
+                font_name=font_name, font_name_bold=font_name_bold,
+                font_size=fs, leading_ratio=leading_ratio, h_scale=hs,
+            )
+            r_final = layout_flow_content(blocks, flow_regions, fc_final, new_line_per_block=new_line)
+            actual_lines = r_final.total_lines
+            used_h = actual_lines * (fs * leading_ratio)
 
-                if (hs > b_hs + 0.005) or \
-                   (abs(hs - b_hs) <= 0.005 and fs > b_fs):
-                    b_fs, b_hs, b_blk = fs, hs, blocks
+            # 硬约束：使用高度不得超过区域总高度（红线：不可突破边界）
+            if used_h > total_height + 0.5:
+                continue
 
-        return b_fs, b_hs, b_blk
+            # 核心评分：艺术感纵向填满优先 (Artistic Vertical Fill)
+            # 用户倾向于：“把字高调大，然后执行一部分横向压缩，以把纵向空间用满”。
+            # 通过 fs ** 1.5 提高字高的权重，使得算法宁愿牺牲一定 hs (变扁) 也要把字标大，
+            # 从而完美填满预留的 vertical bounding box。
+            score = (fs ** 1.5) * hs * actual_lines
 
-    # ── Pass 1: 首选 min_size = content × title_ratio ──
-    best_fs, best_hs, best_blocks = _search_best(preferred_min)
+            if (score > b_score + 0.1) or \
+               (abs(score - b_score) <= 0.1 and fs > b_fs):
+                b_fs, b_hs = fs, hs
+                b_score = score
+                b_res = r_final
 
-    # ── Pass 2: 若压缩过重，放宽到法规最小字号 ──
-    if best_hs < 0.7 and regulatory_min < preferred_min:
-        fs2, hs2, blk2 = _search_best(regulatory_min)
-        if hs2 > best_hs + 0.01:
-            best_fs, best_hs, best_blocks = fs2, hs2, blk2
+        return b_fs, b_hs, b_res
 
-    # ── 渲染或 dry-run ──
+    # ── 智能调度策略 ──
+    best_fs, best_hs, best_blocks, best_nl = 0.0, 1.0, variant_a, True
+    
+    # 阶段一：尝试理想双行布局 (Variant A)
+    # 优先级最高。允许 hs 最低压缩到 0.6，配合 fs**1.5 算法，自动寻找将字号撑到最大且能放下的方案。
+    fs_a, hs_a, res_a = _search_variant(variant_a, regulatory_min, min_hs=0.60, new_line=True)
+    if fs_a > 0 and res_a is not None:
+        # 检查英文是否已经换行（占了 2+ 行）
+        # 如果英文本身已经折行，强制分行就失去了视觉层级意义 → 切换到流式拼接
+        en_lines = sum(1 for lp in res_a.lines if lp.region_idx == 0 or (len(variant_a) > 1 and lp.text and not any(c in lp.text for c in '的了是在有不')))
+        # 更精确的方法：如果总行数 > 2（意味着英文占了 2+ 行），直接切 Variant B
+        if text_cn and res_a.total_lines > 2:
+            # 英文已换行 → 中文没必要独占一行，让它紧跟英文尾巴
+            fs_b, hs_b, res_b = _search_variant(variant_b, regulatory_min, min_hs=0.60, new_line=False)
+            if fs_b > 0:
+                best_fs, best_hs, best_blocks, best_nl = fs_b, hs_b, variant_b, False
+            else:
+                best_fs, best_hs, best_blocks, best_nl = fs_a, hs_a, variant_a, True
+        else:
+            best_fs, best_hs, best_blocks, best_nl = fs_a, hs_a, variant_a, True
+    else:
+        # 阶段二：基于模板线索的降级抉择
+        if expected_max_lines < 2.8:
+            # 短标题预期：即使需要极限压缩，优先死保双行层级
+            fs_a2, hs_a2, res_a2 = _search_variant(variant_a, regulatory_min, min_hs=0.45, new_line=True)
+            if fs_a2 > 0:
+                best_fs, best_hs, best_blocks, best_nl = fs_a2, hs_a2, variant_a, True
+            else:
+                # 极端破防（可能标题奇长），回退到流式拼接
+                fs_b, hs_b, res_b = _search_variant(variant_b, regulatory_min, min_hs=0.35, new_line=False)
+                best_fs, best_hs, best_blocks, best_nl = fs_b, hs_b, variant_b, False
+        else:
+            # 多语言长标题预期（本来就留了很多行）：果断切连续合并模式
+            fs_b, hs_b, res_b = _search_variant(variant_b, regulatory_min, min_hs=0.7, new_line=False)
+            if fs_b > 0:
+                best_fs, best_hs, best_blocks, best_nl = fs_b, hs_b, variant_b, False
+            else:
+                # 放宽压缩底线继续尝试
+                fs_b2, hs_b2, res_b2 = _search_variant(variant_b, regulatory_min, min_hs=0.35, new_line=False)
+                best_fs, best_hs, best_blocks, best_nl = fs_b2, hs_b2, variant_b, False
+
+    # 阶段三：绝对兜底 (Hard Fallback) —— 如果真的全炸了，强行塞 4pt 流式
+    if best_fs == 0.0:
+        hard_min = 4.0
+        fs_b3, hs_b3, res_b3 = _search_variant(variant_b, hard_min, min_hs=0.3, new_line=False)
+        if fs_b3 > 0:
+            best_fs, best_hs, best_blocks, best_nl = fs_b3, hs_b3, variant_b, False
+        else:
+            # 最惨情况：连硬切 4pt 0.3缩放 都放不下，直接画
+            best_fs, best_hs, best_blocks, best_nl = hard_min, 0.3, variant_b, False
+
+    # ── 最终排版与微调 ──
     fc = FontConfig(
         font_name=font_name, font_name_bold=font_name_bold,
         font_size=best_fs, leading_ratio=leading_ratio, h_scale=best_hs,
     )
+    # 最后一次排版不传 canvas，以便应用 y 轴偏移微调
     result = layout_flow_content(best_blocks, flow_regions, fc,
-                                 canvas=canvas)
+                                 canvas=None, new_line_per_block=best_nl)
+
+    # -----------------------------------------------------------------------
+    # 纵向居中 (Vertical Centering) 
+    # 消除顶部贴边而在底部留下空荡荡的视觉违和感
+    # -----------------------------------------------------------------------
+    if result.total_lines > 0:
+        actual_lines = result.total_lines
+        used_h = actual_lines * (best_fs * leading_ratio)
+        total_height = sum(r.height for r in flow_regions)
+        gap = total_height - used_h
+        if gap > 1.0:
+            offset = gap / 2.0
+            for placement in result.lines:
+                placement.y -= offset
+                
+    # 手动绘制平移后的文字
+    if canvas:
+        for placement in result.lines:
+            _render_line(canvas, placement, fc)
+
     return best_fs, best_hs, result
+

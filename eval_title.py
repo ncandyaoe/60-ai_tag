@@ -6,7 +6,7 @@ eval_title.py — 标题渲染评估脚本 (AutoResearch 评估器)
   - 填充率 (25分)：文字占标题区域面积的比例
   - 均匀分布 (20分)：各行宽度利用率方差越小越好
   - 压缩合理 (15分)：h_scale 越接近 1.0 越好
-  - 字号合规 (10分)：font_size >= content_font_size × 1.1
+  - 字号合规 (10分)：font_size >= 法规最小字号 (aoe 字高)
 
 运行方式:
     python eval_title.py
@@ -36,7 +36,8 @@ class TitleTestCase:
     text_en: str
     text_cn: str
     flow_regions: List[FlowRect]
-    content_font_size: float  # 模拟的 content 字号
+    content_font_size: float = 7.0  # 仅用于向后兼容，评分时已不使用
+    country_code: str = "DEFAULT"  # 国家代码（用于法规最小字号）
     difficulty: str = "medium"  # easy / medium / hard / extreme
 
 
@@ -161,10 +162,11 @@ def score_title(tc: TitleTestCase) -> ScoreResult:
         text_en=tc.text_en,
         text_cn=tc.text_cn,
         flow_regions=tc.flow_regions,
-        content_font_size=tc.content_font_size,
+        country_code=tc.country_code,
     )
 
-    min_required = tc.content_font_size * 1.1
+    from flow_layout import get_min_font_pt
+    min_required = get_min_font_pt(tc.country_code)
     total_area = sum(r.width * r.height for r in tc.flow_regions)
     details = {
         "font_size": round(font_size, 2),

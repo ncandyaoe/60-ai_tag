@@ -16,6 +16,7 @@ import os
 from typing import List, Optional
 
 from reportlab.pdfgen import canvas as pdf_canvas
+from reportlab.lib.colors import Color
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
 
@@ -75,10 +76,75 @@ def _regions_to_flowrects(regions: List[TemplateRegion]) -> List[FlowRect]:
 # 渲染管线
 # ---------------------------------------------------------------------------
 
+# ---------------------------------------------------------------------------
+# 区域叠加层（调试用）
+# ---------------------------------------------------------------------------
+
+_REGION_COLORS = {
+    "title":      (Color(0.81, 0.18, 0.15, alpha=0.20), Color(0.81, 0.18, 0.15)),  # 红
+    "content":    (Color(0.09, 0.41, 0.66, alpha=0.20), Color(0.09, 0.41, 0.66)),  # 蓝
+    "nut_table":  (Color(0.47, 0.18, 0.51, alpha=0.20), Color(0.47, 0.18, 0.51)),  # 紫
+    "net_volume": (Color(0.16, 0.58, 0.29, alpha=0.20), Color(0.16, 0.58, 0.29)),  # 绿
+    "logo":       (Color(0.94, 0.81, 0.16, alpha=0.20), Color(0.94, 0.81, 0.16)),  # 黄
+    "eco_icons":  (Color(0.06, 0.60, 0.60, alpha=0.20), Color(0.06, 0.60, 0.60)),  # 青
+}
+
+_REGION_LABELS = {
+    "title": "Title", "content": "Content",
+    "nut_table": "Nutrition", "net_volume": "NetVol",
+    "logo": "Logo", "eco_icons": "EcoIcons",
+}
+
+
+def _draw_region_overlay(c, template: TemplateConfig):
+    """在 Canvas 上绘制所有区域的彩色叠加层。"""
+    c.saveState()
+
+    items = []
+    # 多矩形区域
+    for i, r in enumerate(template.title_rects):
+        suffix = f" R{i+1}" if len(template.title_rects) > 1 else ""
+        items.append((f"title", f"Title{suffix}", r))
+    for i, r in enumerate(template.content_rects):
+        suffix = f" R{i+1}" if len(template.content_rects) > 1 else ""
+        items.append((f"content", f"Content{suffix}", r))
+    # 单矩形区域
+    for key in ("nut_table", "net_volume", "logo", "eco_icons"):
+        region = getattr(template, key, None)
+        if region:
+            items.append((key, _REGION_LABELS[key], region))
+
+    for color_key, label, r in items:
+        fill_c, stroke_c = _REGION_COLORS.get(color_key, _REGION_COLORS["content"])
+        bottom = r.y - r.height
+
+        # 半透明填充
+        c.setFillColor(fill_c)
+        c.rect(r.x, bottom, r.width, r.height, stroke=0, fill=1)
+
+        # 边框
+        c.setStrokeColor(stroke_c)
+        c.setLineWidth(0.8)
+        c.rect(r.x, bottom, r.width, r.height, stroke=1, fill=0)
+
+        # 标签文字
+        c.setFillColor(stroke_c)
+        label_fs = min(6, r.height * 0.3)
+        if label_fs >= 3:
+            c.setFont("Helvetica-Bold", label_fs)
+            c.drawString(r.x + 1, r.y - label_fs - 1, label)
+            c.setFont("Helvetica", max(3, label_fs - 1.5))
+            c.drawString(r.x + 1, r.y - label_fs * 2 - 1,
+                         f"{r.width:.0f}×{r.height:.0f}")
+
+    c.restoreState()
+
+
 def render_label(
     template_or_path,
     data: dict,
     country_cfg: Optional[dict] = None,
+    show_regions: bool = False,
 ) -> bytes:
     """
     解耦式标签渲染管线。
@@ -90,7 +156,7 @@ def render_label(
     渲染顺序（依赖驱动）：
       1. content dry-run → 得到 content_font_size
       2. logo
-      3. title（依赖 content_font_size）
+      3. title（独立自适应，仅受法规最小字号约束）
       4. content
       5. nutrition / net_volume / eco_icons
 
@@ -144,13 +210,12 @@ def render_label(
     if template.logo:
         render_logo(c, template.logo, logo_path)
 
-    # 标题（依赖 content_font_size）
+    # 标题（已与 content 解耦，独立自适应）
     if title_flowrects:
         render_title(
             canvas=c,
             regions=title_flowrects,
             data=data,
-            content_font_size=content_font_size,
             country_cfg=country_cfg,
         )
 
@@ -179,6 +244,10 @@ def render_label(
     if data.get("is_halal") and template.content:
         c.setFont("AliPuHuiTi-Bold", 5)
         c.drawString(template.content.x, template.content.bottom, "☪ HALAL")
+
+    # 区域叠加层（调试用，最后绘制确保在最上层）
+    if show_regions:
+        _draw_region_overlay(c, template)
 
     c.save()
     return buf.getvalue()

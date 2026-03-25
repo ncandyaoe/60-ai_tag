@@ -88,19 +88,15 @@ def render_title(
     canvas: Optional[Canvas],
     regions: List[FlowRect],
     data: dict,
-    content_font_size: float,
-    title_ratio: float = 1.1,
     country_cfg: Optional[dict] = None,
 ) -> Tuple[float, float, object]:
     """
-    标题区域渲染器。
+    标题区域渲染器（已与 content 完全解耦）。
 
     Args:
         canvas:             ReportLab Canvas（None = 仅计算）
         regions:            标题的 FlowRect 列表（可能 L 型）
         data:               PLM 数据（需含 product_name_en / product_name_cn）
-        content_font_size:  content 区域字号
-        title_ratio:        标题最小字号 = content_fs × title_ratio（首选）
         country_cfg:        国家法规配置
 
     Returns:
@@ -114,10 +110,8 @@ def render_title(
         text_en=en_name,
         text_cn=cn_name,
         flow_regions=regions,
-        content_font_size=content_font_size,
         font_name=_FONT_NAME,
         font_name_bold=_FONT_NAME_BOLD,
-        title_ratio=title_ratio,
         country_code=country_code,
         canvas=canvas,
     )
