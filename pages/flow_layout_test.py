@@ -41,8 +41,20 @@ R1_FILL   = Color(0.20, 0.50, 1.00, alpha=0.08)
 R1_STROKE = Color(0.20, 0.50, 1.00, alpha=0.6)
 R2_FILL   = Color(0.20, 0.80, 0.30, alpha=0.08)
 R2_STROKE = Color(0.20, 0.80, 0.30, alpha=0.6)
+R3_FILL   = Color(0.90, 0.40, 0.10, alpha=0.08)
+R3_STROKE = Color(0.90, 0.40, 0.10, alpha=0.6)
 FIXED_FILL   = Color(0.90, 0.90, 0.90, alpha=1.0)
 FIXED_STROKE = Color(0.70, 0.70, 0.70)
+
+# ---- 三块型常量 ----
+DIV_H = 15          # 分隔固定条高度
+R1_3B = 55          # 上区高度
+R2_3B = 40          # 中区高度
+# 下区 = 剩余空间
+
+# ---- 左右型常量 ----
+NUT_H_LR = 85       # 左右型营养表高 (比倒L型稍高)
+RIGHT_W  = CONTENT_W - NUT_W   # 右栏宽度
 
 # ---- PLM 示例数据 ----
 PLM_EXAMPLE_LONG = {
@@ -80,7 +92,7 @@ PLM_EXAMPLES = {
     "芝麻油（少字版本）":   PLM_EXAMPLE_SHORT,
 }
 
-# ---- 4 种布局 ----
+# ---- 6 种布局 ----
 LAYOUTS = {
     "倒L型": {
         "desc": "全宽 → 右下营养表避让",
@@ -129,6 +141,34 @@ LAYOUTS = {
             {"label": "Net Vol", "x": M, "y": M,                            "w": CONTENT_W, "h": NET_H},
         ],
     },
+    "三块型": {
+        "desc": "三段式：上区 → 分隔 → 中区 → 分隔 → 下区",
+        "regions": [
+            FlowRect(x=M, y=TEXT_TOP, width=CONTENT_W, height=R1_3B),
+            FlowRect(x=M, y=TEXT_TOP-R1_3B-DIV_H, width=CONTENT_W, height=R2_3B),
+            FlowRect(x=M, y=TEXT_TOP-R1_3B-DIV_H-R2_3B-DIV_H, width=CONTENT_W,
+                     height=(TEXT_TOP-R1_3B-DIV_H-R2_3B-DIV_H)-NET_TOP),
+        ],
+        "fixed": [
+            {"label": "Title",   "x": M, "y": CH-M-TITLE_H, "w": CONTENT_W, "h": TITLE_H},
+            {"label": "Divider1","x": M, "y": TEXT_TOP-R1_3B-DIV_H, "w": CONTENT_W, "h": DIV_H},
+            {"label": "Divider2","x": M, "y": TEXT_TOP-R1_3B-DIV_H-R2_3B-DIV_H, "w": CONTENT_W, "h": DIV_H},
+            {"label": "Net Vol", "x": M, "y": M, "w": CONTENT_W, "h": NET_H},
+        ],
+    },
+    "左右型": {
+        "desc": "营养表左上 → 右栏文字 → 下方全宽",
+        "regions": [
+            FlowRect(x=M+NUT_W, y=TEXT_TOP, width=RIGHT_W, height=NUT_H_LR),
+            FlowRect(x=M, y=TEXT_TOP-NUT_H_LR, width=CONTENT_W,
+                     height=(TEXT_TOP-NUT_H_LR)-NET_TOP),
+        ],
+        "fixed": [
+            {"label": "Title",     "x": M, "y": CH-M-TITLE_H,       "w": CONTENT_W, "h": TITLE_H},
+            {"label": "Nut Table", "x": M, "y": TEXT_TOP-NUT_H_LR,   "w": NUT_W,     "h": NUT_H_LR},
+            {"label": "Net Vol",   "x": M, "y": M, "w": CONTENT_W, "h": NET_H},
+        ],
+    },
 }
 
 
@@ -160,9 +200,9 @@ def render_layout(layout_cfg: dict, blocks: list[TextBlock], min_size: float = 4
         c.drawCentredString(f["x"]+f["w"]/2, f["y"]+f["h"]/2-3, f["label"])
 
     # 流式矩形边框
-    styles = [(R1_FILL, R1_STROKE), (R2_FILL, R2_STROKE)]
+    styles = [(R1_FILL, R1_STROKE), (R2_FILL, R2_STROKE), (R3_FILL, R3_STROKE)]
     for i, r in enumerate(regions):
-        fill, stroke = styles[i % 2]
+        fill, stroke = styles[i % len(styles)]
         c.setFillColor(fill)
         c.setStrokeColor(stroke)
         c.setLineWidth(1.2)
@@ -238,9 +278,9 @@ if st.session_state.get("parse_ok"):
         f"最小字号 {min_font_size:.1f}pt ({selected_country})"
     )
 
-    cols = st.columns(2)
+    cols = st.columns(3)
     for i, (name, cfg) in enumerate(LAYOUTS.items()):
-        with cols[i % 2]:
+        with cols[i % 3]:
             png, font_size, h_scale, n_lines, overflow = render_layout(cfg, blocks, min_size=min_font_size)
             if overflow:
                 status = "⚠️ OVERFLOW"

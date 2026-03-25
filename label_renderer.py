@@ -1040,24 +1040,89 @@ def generate_label_pdf(data: dict, country_cfg: Optional[dict] = None) -> bytes:
     bottom = MARGIN
     content_w = right - left
 
-    # 固定字号（标题、中文名、营养表、Net Volume 不受自适应影响）
+    # 固定字号（营养表、Net Volume 不受自适应影响）
     sizes = {
-        "title": _FIXED_TITLE,
-        "cn":    _FIXED_CN,
         "nut":   _FIXED_NUT,
         "net":   _FIXED_NET,
     }
 
     # ============================================================
-    # 区域 A：产品英文名 + 中文名（左）、Logo（右上）
+    # 区域划定（固定，互不侵占）
     # ============================================================
-    y = top - sizes["title"] * 0.8
 
+    # Logo
     logo_path = data.get("brand_logo", "")
     static_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static")
     if not logo_path or not os.path.isfile(logo_path):
         logo_path = os.path.join(static_dir, "logo_placeholder.png")
 
+    # 营养表
+    right_col_ratio = 0.62
+    col_gap = 4
+    left_col_w = content_w * (1 - right_col_ratio)
+    right_col_w = content_w * right_col_ratio
+    right_col_x = left + left_col_w + col_gap
+    actual_right_w = right_col_w - col_gap
+    nut_total_h = _calc_nutrition_height(data, sizes)
+    nut_top_y = bottom + nut_total_h
+
+    # Net Volume 预留
+    net_weight = data.get("net_weight", "")
+    net_reserve = (_FIXED_NET * _CAP_H_RATIO + 2) if net_weight else 0
+
+    # --- 标题区域（固定高度，顶部） ---
+    TITLE_ZONE_H = _FIXED_TITLE * 2.5 + 2  # 预留约 2.5 行标题高度
+    title_top = top
+    title_bottom = top - TITLE_ZONE_H
+    title_narrow_w = content_w - LOGO_W - 2   # 第一行：扣除 logo 宽度 + 间距
+    logo_row_h = LOGO_H                       # logo 高度决定窄行区域
+
+    # 标题区域为 L 型：
+    # R1: logo 旁边的窄区域（1行高度）
+    # R2: logo 下方的全宽区域（剩余行）
+    title_regions = []
+    if logo_row_h > 0:
+        title_regions.append(FlowRect(x=left, y=title_top, width=title_narrow_w, height=min(logo_row_h, TITLE_ZONE_H)))
+    remaining_h = TITLE_ZONE_H - logo_row_h
+    if remaining_h > 0:
+        title_regions.append(FlowRect(x=left, y=title_top - logo_row_h, width=content_w, height=remaining_h, seamless=True))
+
+    # --- Content 区域（标题底部 → 营养表顶部 → 左栏） ---
+    content_top = title_bottom
+    r1_h = content_top - nut_top_y
+    r2_h = nut_top_y - (bottom + net_reserve)
+
+    content_regions = []
+    if r1_h > 0:
+        content_regions.append(FlowRect(x=left, y=content_top, width=content_w, height=r1_h))
+    if r2_h > 0:
+        content_regions.append(FlowRect(x=left, y=nut_top_y, width=left_col_w, height=r2_h, seamless=True))
+
+    # ============================================================
+    # 第一步：计算 content 字号（在固定的 content 区域内）
+    # ============================================================
+    blocks = plm_to_blocks(data)
+
+    country_code = country_cfg.get("code", "DEFAULT")
+    min_mm = country_cfg.get("min_font_height_mm", 1.2)
+    min_font_pt = min_mm / (0.3528 * _X_HEIGHT_RATIO)
+
+    content_font_size, content_h_scale = find_best_font_size(
+        blocks, content_regions,
+        font_name=_FONT_NAME,
+        font_name_bold=_FONT_NAME_BOLD,
+        min_size=min_font_pt,
+        max_size=16.0,
+    )
+
+    # ============================================================
+    # 第二步：渲染标题（在固定的标题区域内）
+    # min_size = content_font_size × 1.1
+    # ============================================================
+    en_name = data.get("product_name_en", "PRODUCT NAME")
+    cn_name = data.get("product_name_cn", "")
+
+    # 渲染 logo
     if os.path.isfile(logo_path):
         try:
             c.drawImage(logo_path, right - LOGO_W, top - LOGO_H,
@@ -1066,84 +1131,27 @@ def generate_label_pdf(data: dict, country_cfg: Optional[dict] = None) -> bytes:
         except Exception:
             pass
 
-    a_gap = 1
-    c.setFont(_FONT_NAME_BOLD, sizes["title"])
-    en_name = data.get("product_name_en", "PRODUCT NAME")
-    c.drawString(left, y, en_name)
-
-    cn_name = data.get("product_name_cn", "")
-    if cn_name:
-        y -= sizes["title"] * 1.15 + a_gap
-        c.setFont(_FONT_NAME_BOLD, sizes["cn"])
-        c.drawString(left, y, cn_name)
-        # 仅减去 descender 深度 + 小间距，flow engine 负责第一行定位
-        y -= sizes["cn"] * 0.25 + a_gap
-    else:
-        y -= sizes["title"] * 0.25 + a_gap
-
-    # ============================================================
-    # 区域 B+C：使用 flow_layout 独立引擎排版
-    # ============================================================
-
-    # 营养表尺寸
-    right_col_ratio = 0.62
-    col_gap = 4
-    left_col_w = content_w * (1 - right_col_ratio)
-    right_col_w = content_w * right_col_ratio
-    right_col_x = left + left_col_w + col_gap
-    actual_right_w = right_col_w - col_gap
-
-    nut_total_h = _calc_nutrition_height(data, sizes)
-
-    # Net Volume 预留
-    net_weight = data.get("net_weight", "")
-    net_reserve = (_FIXED_NET * _CAP_H_RATIO + 2) if net_weight else 0  # +2pt 缓冲
-
-    # 营养表顶部 y 坐标（从底部往上：bottom + nut_total_h）
-    nut_top_y = bottom + nut_total_h
-
-    # 构建 FlowRect 区域（倒 L 型）
-    # R1：全宽区域（A 区域底部 → 营养表顶部）
-    # R2：左栏窄区域（营养表顶部 → 底部 + net_reserve）
-    r1_y = y           # A 区域结束后的 y（FlowRect 的顶边）
-    r1_h = y - nut_top_y
-    r2_y = nut_top_y
-    r2_h = nut_top_y - (bottom + net_reserve)
-
-    flow_regions = []
-    if r1_h > 0:
-        flow_regions.append(FlowRect(x=left, y=r1_y, width=content_w, height=r1_h))
-    if r2_h > 0:
-        flow_regions.append(FlowRect(x=left, y=r2_y, width=left_col_w, height=r2_h, seamless=True))
-
-    # PLM 数据 → TextBlock 列表
-    blocks = plm_to_blocks(data)
-
-    # 法规最小字号（硬约束：低于此值不合规，用 h_scale 代替缩小字号）
-    country_code = country_cfg.get("code", "DEFAULT")
-    min_mm = country_cfg.get("min_font_height_mm", 1.2)
-    min_font_pt = min_mm / (0.3528 * _X_HEIGHT_RATIO)
-
-    # 两阶段自适应：字号（max→min_font_pt）→ h_scale（1.0→0.5）
-    best_size, h_scale = find_best_font_size(
-        blocks, flow_regions,
+    from flow_layout import layout_title
+    title_font_size, title_h_scale, title_result = layout_title(
+        text_en=en_name,
+        text_cn=cn_name,
+        flow_regions=title_regions,
+        content_font_size=content_font_size,
         font_name=_FONT_NAME,
         font_name_bold=_FONT_NAME_BOLD,
-        min_size=min_font_pt,
-        max_size=16.0,
+        canvas=c,
     )
 
-    # h_scale 由 flow_layout._render_line 的 canvas.transform() 处理
-    # 不需要额外设置 PDF Tz 操作符（否则会双重压缩）
-
-    # 使用流式引擎渲染 B+C 区域
+    # ============================================================
+    # 第三步：渲染 content（在固定的 content 区域内）
+    # ============================================================
     fc = FontConfig(
         font_name=_FONT_NAME,
         font_name_bold=_FONT_NAME_BOLD,
-        font_size=best_size,
-        h_scale=h_scale,
+        font_size=content_font_size,
+        h_scale=content_h_scale,
     )
-    layout_flow_content(blocks, flow_regions, fc, canvas=c)
+    layout_flow_content(blocks, content_regions, fc, canvas=c)
 
     # ============================================================
     # 固定区域：Net Volume + 营养表 + HALAL

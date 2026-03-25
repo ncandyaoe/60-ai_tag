@@ -10,7 +10,10 @@ from country_config import (
     validate_font_compliance,
     COUNTRY_REGISTRY,
 )
-from label_renderer import generate_label_preview_html, generate_label_pdf
+from label_renderer import generate_label_preview_html, generate_label_pdf, pdf_to_png_base64
+from template_extractor import extract_template_regions
+from render_pipeline import render_label
+from flow_layout import FlowRect
 
 # ==========================================
 # Jinja2 模板环境：加载 templates/ 目录下的模板
@@ -158,7 +161,6 @@ PLM_EXAMPLE_1 = {
         ]
     }
 }
-
 # 场景2：同一标签，老抽酱油（不同产品，营养成分不同）
 PLM_EXAMPLE_2 = {
     "product_name_en": "Dark Soy Sauce(Classic Version)",
@@ -191,16 +193,109 @@ PLM_EXAMPLE_2 = {
         ]
     }
 }
+# 场景3：竖版标签（50×120mm）
+PLM_EXAMPLE_3 = {
+    "product_name_en": "[EN] 0 MUSHROOM DARK SOY SAUCE / [NL] 0 CHAMPIGNON DONKERE SOJASAUS / [ES] 0 SALSA DE SOYA OSCURA DE SETA DE PAJA / [DE] 0 SOJASAUCE MIT PILZGESCHMACK / [FR] 0 SAUCE DE SOJA AU CHAMPIGNON",
+    "product_name_cn": "0草菇老抽",
+    "net_weight": "500 mL",
+    "ingredients": "[EN] Ingredients: Water, Soybeans (23%), Sugar, Salt, Wheat(Gluten)(11%), Mushroom Extract(0.002%). / [NL] Ingrediënten: Water, Sojabonen (23%), Suiker, Zout, Tarwe(Gluten)(11%), Paddenstoelenextract (0.002%). / [ES]Ingredientes: Agua, Soja (23%), Azúcar, Sal, Trigo(Gluten)(11%), Jugo de Seta de Paja(0.002%). / [DE] Zutaten: Wasser, Sojabohnen (23%), Zucker, Salz, Weizen(Gluten)(11%), Hefeextrakt (0.002%). / [FR] Ingrédients:Eau, Soja (23%), Sucre, Sel, Blé(Gluten)(11%), Extrait de Champignon (0.002%).",
+    "allergens": "", 
+    "storage": "Store in a cool, dry place.Please keep in refrigerator after opening and consume as soon as possible. / Bewaren op een koele, droge plaats. Na opening in de koelkast bewaren en zo snel mogelijk consumeren. / Conservar en un lugar fresco y seco. Conservar en el frigorifico una vez abierto y consumir lo antes posible. / Kühl und trocken lagern. Nach dem Öffnen bitte im Kühlschrank aufbewahren und schnellstmöglich verbrauchen. / Conserver dans un endroit frais et sec.Veuillez conserver au réfrigérateur après ouverture et consommer dès que possible.",
+    "usage": "", 
+    "production_date": "",
+    "best_before": "Best before / Ten minste houdbaar tot / Consumir preferentemente antes del / Mindestens haltbar bis / À consommer de préférence avant le: See the package / Zie verpakking / Ver envase / Siehe verpackung / Voir emballage (DD/MM/YYYY).",
+    "origin": "Product of China / Product uit China / Producto de China / Produkt aus China / Produit de Chine",
+    "manufacturer": "", 
+    "manufacturer_address": "",
+    "importer_info": "Importer/Importeur/Importador/Importeur/Importateur: JINGDONG RETAIL (NETHERLANDS) B.V.\nDa Vincistraat 5, 2652XE, Berkel en Rodenrijs, The Netherlands",
+    "target_country": "NL",
+    "nutrition": {"serving_size": "100mL", "table_data": [
+        {"name": "Energy", "per_serving": "706 kJ / 167 kcal"},
+        {"name": "Fat", "per_serving": "0 g"},
+        {"name": "  -Saturates", "per_serving": "0 g"},
+        {"name": "Carbohydrate", "per_serving": "32 g"},
+        {"name": "  -Sugars", "per_serving": "7.1 g"},
+        {"name": "Protein", "per_serving": "11 g"},
+        {"name": "Salt", "per_serving": "18.8 g"},
+    ]},
+}
+
+# 场景4：竖版标签，耗油（德国，测试中等标题长度+极长配料表）
+PLM_EXAMPLE_4 = {
+    "product_name_en": "[EN] PREMIUM OYSTER FLAVOURED SAUCE / [NL] PREMIUM OESTERSAUS / [ES] SALSA CON SABOR A OSTRA PREMIUM / [DE] PREMIUM-AUSTERN-SAUCE / [FR] SAUCE SAVEUR HUITRE PREMIUM",
+    "product_name_cn": "特级黄豆蚝油",
+    "net_weight": "725 g",
+    "ingredients": "[EN] Ingredients: Water, Sugar, Oyster Extract(11%) (Oyster, Water, Salt), Salt, Modified Corn Starch, Flavour Enhancer (Monosodium Glutamate), Wheat Flour, Colour (Caramel I). / [NL] Ingrediënten: Water, Suiker, Oesterextract (11%) (Oester, Water, Zout), Zout, Gemodificeerd maïszetmeel, Smaakversterker (Mononatriumglutamaat), Tarwebloem, Kleurstof (Karamel I). / [ES] Ingredientes: Agua, Azúcar, Extracto de ostra (11%) (Ostra, Agua, Sal), Sal, Almidón de maíz modificado, Potenciador del sabor (Glutamato monosódico), Harina de trigo, Colorante (Caramelo I). / [DE] Zutaten: Wasser, Zucker, Austernextrakt (11%) (Auster, Wasser, Salz), Salz, Modifizierte Maisstärke, Geschmacksverstärker (Mononatriumglutamat), Weizenmehl, Farbstoff (Karamell I). / [FR] Ingrédients: Eau, Sucre, Extrait d'huître (11%) (Huître, Eau, Sel), Sel, Amidon de maïs modifié, Exhausteur de goût (Glutamate monosodique), Farine de blé, Colorant (Caramel I).",
+    "allergens": "Allergens: Contains Oyster(Molluscs) and Wheat.", 
+    "storage": "Store in a cool, dry place. Please keep in refrigerator after opening.",
+    "usage": "Use as a dip, marinade or stir-fry sauce.", 
+    "production_date": "",
+    "best_before": "Best before: See the package (DD/MM/YYYY).",
+    "origin": "Product of China",
+    "manufacturer": "", 
+    "manufacturer_address": "",
+    "importer_info": "Importer: EUROPE TRADING CO., LTD.\nMain Street 100, 10115 Berlin, Germany",
+    "target_country": "DE",
+    "nutrition": {"serving_size": "100g", "table_data": [
+        {"name": "Energy", "per_serving": "406 kJ / 95 kcal"},
+        {"name": "Fat", "per_serving": "0.1 g"},
+        {"name": "  -Saturates", "per_serving": "0 g"},
+        {"name": "Carbohydrate", "per_serving": "21.5 g"},
+        {"name": "  -Sugars", "per_serving": "18.3 g"},
+        {"name": "Protein", "per_serving": "2.1 g"},
+        {"name": "Salt", "per_serving": "11.5 g"},
+    ]},
+}
+
+# 场景5：竖版标签，芝麻油（法国，测试双标题同行+长提示语情况）
+PLM_EXAMPLE_5 = {
+    "product_name_en": "[EN] 100% PURE ROASTED SESAME OIL / [FR] HUILE DE SÉSAME GRILLÉ 100% PURE",
+    "product_name_cn": "100%纯正芝麻香油",
+    "net_weight": "250 mL",
+    "ingredients": "[EN] Ingredients: 100% Roasted Sesame Seed Oil. / [FR] Ingrédients: Huile de graines de sésame grillées à 100%.",
+    "allergens": "Contains Sesame.", 
+    "storage": "Keep away from direct sunlight. Cloudiness and/or sediment may naturally occur, this does not affect the quality.",
+    "usage": "Add a few drops to soup, salad or noodles just before serving to enhance flavour.", 
+    "production_date": "",
+    "best_before": "A consommer de preference avant le: Voir emballage.",
+    "origin": "Product of China / Produit de Chine",
+    "manufacturer": "", 
+    "manufacturer_address": "",
+    "importer_info": "Importateur: PARIS FOODS S.A.S.\n15 Rue de Rivoli, 75004 Paris, France",
+    "target_country": "FR",
+    "nutrition": {"serving_size": "100mL", "table_data": [
+        {"name": "Energy", "per_serving": "3425 kJ / 833 kcal"},
+        {"name": "Fat", "per_serving": "92.5 g"},
+        {"name": "  -Saturates", "per_serving": "12.8 g"},
+        {"name": "Carbohydrate", "per_serving": "0 g"},
+        {"name": "  -Sugars", "per_serving": "0 g"},
+        {"name": "Protein", "per_serving": "0 g"},
+        {"name": "Salt", "per_serving": "0 g"},
+    ]},
+}
 
 PLM_EXAMPLES = {
     "场景1 - 生抽酱油 (Wonderful Foods 进口)": PLM_EXAMPLE_1,
     "场景2 - 老抽酱油 (广州宝来星 进口)":     PLM_EXAMPLE_2,
+    "场景3 - 草菇老抽 (京东国际竖版 荷兰)":   PLM_EXAMPLE_3,
+    "场景4 - 特级蚝油 (含过敏原与极长配料 德国)": PLM_EXAMPLE_4,
+    "场景5 - 纯正芝麻油 (短配料长提示语 法国)": PLM_EXAMPLE_5,
 }
 
 # --------------------------------------------------
 # UI
 # --------------------------------------------------
-st.title("🏷️ 小标签生成系统 · PLM 直连版 (3×3 方形标签)")
+st.title("🏷️ 智能合规标签排版系统")
+
+TEMPLATE_OPTIONS = {
+    "默认 3×3 方形标签 (70×69mm)": "classic",
+    "竖版标签 (50×120mm)": "vertical_50_120",
+}
+
+selected_template_name = st.selectbox("📏 选择物理标签模板：", list(TEMPLATE_OPTIONS.keys()))
+selected_template = TEMPLATE_OPTIONS[selected_template_name]
+
+st.markdown("---")
 
 col1, col2 = st.columns([1, 1])
 
@@ -242,44 +337,112 @@ with col1:
             st.error(f"JSON 格式错误，请检查输入：{e}")
 
 with col2:
-    st.subheader("2. 物理 PDF 合规排版 (3×3 · 76mm)")
+    if selected_template == "classic":
+        st.subheader("2. 物理 PDF 合规排版 (3×3 · 76mm)")
+    else:
+        st.subheader("2. 物理 PDF 合规排版 (竖版 50×120mm)")
+
     if 'label_data' in st.session_state:
         cc = st.session_state.get('country_code', 'DEFAULT')
         data = st.session_state['label_data']
 
-        # --------------------------------------------------
-        # [改造项3] 合规校验
-        # --------------------------------------------------
-        from country_config import validate_font_compliance
-        min_font_pt = calc_min_font_size_pt(data, cc)
-        compliance = validate_font_compliance(min_font_pt, cc)
+        if selected_template == "classic":
+            # --------------------------------------------------
+            # [改造项3] 合规校验
+            # --------------------------------------------------
+            from country_config import validate_font_compliance
+            min_font_pt = calc_min_font_size_pt(data, cc)
+            compliance = validate_font_compliance(min_font_pt, cc)
 
-        if compliance["level"] == "fail":
-            st.error(compliance["message"])
-        elif compliance["level"] == "warn":
-            st.warning(compliance["message"])
-        else:
-            st.success(compliance["message"])
+            if compliance["level"] == "fail":
+                st.error(compliance["message"])
+            elif compliance["level"] == "warn":
+                st.warning(compliance["message"])
+            else:
+                st.success(compliance["message"])
 
-        # --------------------------------------------------
-        # 服务端生成 PDF + PNG 预览
-        # --------------------------------------------------
-        country_cfg = get_country_config(cc)
-        preview_html, pdf_bytes = generate_label_preview_html(data, country_cfg)
-        st.components.v1.html(preview_html, height=600, scrolling=True)
+            # --------------------------------------------------
+            # 使用新引擎渲染经典标签（两轮迭代消除标题/内容重叠）
+            # --------------------------------------------------
+            from template_classic import build_classic_config
+            from region_renderers import render_content
+            country_cfg = get_country_config(cc)
 
-        # 下载按钮
-        if compliance["level"] != "fail":
-            filename = (data.get('product_name_en', 'label').replace(' ', '_') + '_Compliance.pdf')
-            st.download_button(
-                label="⬇ 下载 PDF（送厂印刷）",
-                data=pdf_bytes,
-                file_name=filename,
-                mime="application/pdf",
-                type="primary",
+            # Pass 1: 用宽裕默认标题区 → 得到 content_font_size
+            tmpl_pass1 = build_classic_config(data)
+            content_flowrects_p1 = [
+                FlowRect(x=r.x, y=r.y, width=r.width, height=r.height)
+                for r in tmpl_pass1.content_rects
+            ]
+            content_fs, _ = render_content(
+                canvas=None, regions=content_flowrects_p1,
+                data=data, country_cfg=country_cfg,
             )
-        else:
-            st.button("⬇ 下载 PDF（送厂印刷）", disabled=True, help="字高不合规，禁止下载")
+
+            # Pass 2: 用实际 content_font_size 精确计算标题区高度
+            classic_tmpl = build_classic_config(data, content_font_size=content_fs)
+            pdf_bytes = render_label(classic_tmpl, data, country_cfg)
+
+            # PNG 预览
+            png_b64 = pdf_to_png_base64(pdf_bytes, dpi=216)
+            preview_html = f"""<!DOCTYPE html>
+            <html><head><meta charset="UTF-8"><style>
+            body {{ margin:0; padding:0; background:#4a4a4a; display:flex; flex-direction:column; align-items:center; min-height:100vh; }}
+            img {{ max-width:100%; background:white; box-shadow:0 4px 16px rgba(0,0,0,0.5); margin:16px; }}
+            </style></head><body>
+            <img src="data:image/png;base64,{png_b64}" alt="Label Preview" />
+            </body></html>"""
+            st.components.v1.html(preview_html, height=600, scrolling=True)
+
+            # 下载按钮
+            if compliance["level"] != "fail":
+                filename = (data.get('product_name_en', 'label').replace(' ', '_') + '_Compliance.pdf')
+                st.download_button(
+                    label="⬇ 下载 PDF（送厂印刷）",
+                    data=pdf_bytes,
+                    file_name=filename,
+                    mime="application/pdf",
+                    type="primary",
+                )
+            else:
+                st.button("⬇ 下载 PDF（送厂印刷）", disabled=True, help="字高不合规，禁止下载")
+                
+        elif selected_template == "vertical_50_120":
+            st.info("💡 竖版标签使用智能自适应布局引擎，内置防溢出规则并自动保证合规字高（无需额外校验检查）。")
+            country_cfg = get_country_config(cc)
+            
+            # 使用固定提供给设计师的那个竖版老抽模板
+            # 实际场景可根据传入参数动态获取模板路径
+            # relative path to root: 
+            ai_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "0-需求文档", "1-竖版标签", "荷兰0草老", "25500015414 500mL荷兰京东国际0草菇老抽小标签(50x120mm) 202510-02.ai")
+            
+            if not os.path.exists(ai_path):
+                st.error(f"找不到模板文件: {ai_path}")
+            else:
+                cfg_tmpl = extract_template_regions(ai_path)
+                pdf_bytes = render_label(cfg_tmpl, data, country_cfg)
+                
+                # 生成 PNG 预览 (高分屏 216 DPI)
+                png_b64 = pdf_to_png_base64(pdf_bytes, dpi=216)
+                
+                preview_html = f"""<!DOCTYPE html>
+                <html><head><meta charset="UTF-8"><style>
+                body {{ margin:0; padding:0; background:#4a4a4a; display:flex; justify-content:center; padding: 20px; }}
+                img {{ max-width:100%; box-shadow:0 4px 16px rgba(0,0,0,0.5); }}
+                </style></head><body>
+                <img src="data:image/png;base64,{png_b64}" alt="Label Preview" />
+                </body></html>"""
+                
+                st.components.v1.html(preview_html, height=800, scrolling=True)
+                
+                filename = (data.get('product_name_en', 'label').replace(' ', '_') + '_Vertical.pdf')
+                st.download_button(
+                    label="⬇ 下载 PDF（送厂印刷）",
+                    data=pdf_bytes,
+                    file_name=filename,
+                    mime="application/pdf",
+                    type="primary",
+                )
 
         with st.expander("查看当前 JSON 结构"):
             st.json(data)

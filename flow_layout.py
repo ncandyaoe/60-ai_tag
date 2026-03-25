@@ -167,6 +167,30 @@ def layout_flow_content(
                 return result
 
             region = flow_regions[ri]
+
+            # ── 预检查：当前行是否能在当前区域内放下 ──
+            # cur_y 是 baseline，text_bottom = cur_y - descent
+            while cur_y - descent < region.bottom:
+                # 检查下一个区域
+                if ri + 1 >= len(flow_regions):
+                    result.overflow = True
+                    return result
+                next_r = flow_regions[ri + 1]
+
+                if next_r.seamless and next_r.width > region.width and cur_y + fc.font_size > region.bottom:
+                    # ── 延迟切换 ──
+                    # 字形顶部 (cur_y + font_size) 仍高于窄区域底边，
+                    # 说明这一行的字形还会伸入窄区域的高度范围。
+                    # 若此时切换到宽区域，文字从视觉上会侵入 Logo 等"禁飞区"。
+                    # 保持窄宽度，让 descent 安全溢出到紧邻的宽区域。
+                    break
+                else:
+                    ri += 1
+                    region = next_r
+                    if not region.seamless:
+                        cur_y = region.y - fc.font_size
+                    # seamless 且 baseline 已低于新区域顶边 → 直接使用
+
             # 横向压缩时等效宽度更大（每行容纳更多字符）
             # 减 1pt 安全余量：stringWidth 逐字累加与实际渲染的字距有微小差异
             avail_w = (region.width / eff_h_scale if eff_h_scale < 1.0 else region.width) - 1.0
@@ -201,8 +225,11 @@ def layout_flow_content(
                     line_w += ch_w
                     ptr += 1
 
-                    # 标记可断行位置（在这些字符之后可以换行）
-                    if ch in (' ', '-', '(', ')', ',', '/'):
+                    # 标记可断行位置
+                    # 开括号：在括号 *前* 断行（避免行尾孤立 "(" ）
+                    if ch in ('(', '（'):
+                        last_break_ptr = ptr - 1 if ptr - 1 > line_start else ptr
+                    elif ch in (' ', '-', ')', '）', ',', '，', '/'):
                         last_break_ptr = ptr
 
             line_text = full_text[line_start:ptr]
@@ -234,13 +261,21 @@ def layout_flow_content(
             # 检查下一行是否超出当前矩形（含 descender 深度）
             # cur_y 是下一行 baseline，其 descender 延伸到 cur_y - descent
             if cur_y - descent < region.bottom:
-                ri += 1
-                if ri < len(flow_regions):
-                    new_r = flow_regions[ri]
-                    if not new_r.seamless:
-                        # 默认行为：重置到新区域顶边
-                        cur_y = new_r.y - fc.font_size
-                    # else: seamless=True → 保持 cur_y 连贯（倒L型）
+                if ri + 1 >= len(flow_regions):
+                    pass  # 循环顶部会处理 overflow
+                else:
+                    next_r = flow_regions[ri + 1]
+                    if next_r.seamless and next_r.width > region.width and cur_y + fc.font_size > region.bottom:
+                        # 延迟切换：字形顶部仍高于窄区域底边，
+                        # 下一轮 pre-check 会再次判断
+                        pass
+                    elif not next_r.seamless:
+                        ri += 1
+                        region = next_r
+                        cur_y = region.y - fc.font_size
+                    else:
+                        ri += 1
+                        region = next_r
 
     return result
 
@@ -476,3 +511,145 @@ def plm_to_blocks(data: dict) -> List[TextBlock]:
         blocks.append(TextBlock(text=imp, bold_prefix="Imported by: "))
 
     return blocks
+
+
+# ---------------------------------------------------------------------------
+# 标题自适应布局（最少压缩策略）
+# ---------------------------------------------------------------------------
+
+def layout_title(
+    text_en: str,
+    text_cn: str,
+    flow_regions: List[FlowRect],
+    content_font_size: float,
+    font_name: str = _FONT_NAME,
+    font_name_bold: str = _FONT_NAME_BOLD,
+    title_ratio: float = 1.1,
+    max_size: float = 24.0,
+    leading_ratio: float = 1.15,
+    country_code: str = "DEFAULT",
+    canvas=None,
+) -> tuple:
+    """
+    标题自适应布局引擎。
+
+    核心策略：最少压缩优先（maximise h_scale）。
+      1. 从 max_size 向下扫描每个字号（步长 0.5pt）
+      2. 对每个字号，先测试 h_scale=1.0（无压缩）
+         - 不溢出 → 记录 (fs, 1.0)
+         - 溢出 → 二分搜索最大 h_scale
+      3. 在所有 (字号 × h_scale) 中，取 h_scale 最大的
+         - h_scale 相同时，取字号更大的
+
+    两遍搜索策略：
+      Pass 1: min_size = content_font_size × title_ratio（优先）
+      Pass 2: 若 Pass 1 的 h_scale < 0.7（压缩过重），放宽到
+              min_size = 国家法规最小字号，重新搜索
+
+    Args:
+        text_en / text_cn:  产品名
+        flow_regions:       标题区域（矩形或 L 型）
+        content_font_size:  内容区字号
+        title_ratio:        首选 min = content_fs × title_ratio
+        country_code:       国家代码（用于法规最小字号）
+        canvas:             ReportLab canvas
+
+    Returns:
+        (font_size, h_scale, LayoutResult)
+    """
+    import math
+
+    if not text_en and not text_cn:
+        return 0.0, 1.0, LayoutResult(region_usage=[0.0] * len(flow_regions))
+
+    preferred_min = content_font_size * title_ratio
+    regulatory_min = get_min_font_pt(country_code)
+    min_size = preferred_min
+
+    # ── 构造两种 TextBlock 方案 ──
+    block_variants = []
+
+    blocks_sep = []
+    if text_en:
+        blocks_sep.append(TextBlock(text="", bold_prefix=text_en))
+    if text_cn:
+        blocks_sep.append(TextBlock(text="", bold_prefix=text_cn))
+    if blocks_sep:
+        block_variants.append(blocks_sep)
+
+    if text_en and text_cn:
+        merged = text_en + "  " + text_cn
+        block_variants.append([TextBlock(text="", bold_prefix=merged)])
+
+    total_height = sum(r.height for r in flow_regions)
+
+    def _search_best(min_sz: float):
+        """扫描所有字号 [max_size → min_sz]，找 h_scale 最大的方案。"""
+        b_fs, b_hs, b_blk = 0.0, 0.0, block_variants[0]
+
+        sizes = []
+        s = max_size
+        while s >= min_sz - 0.01:
+            sizes.append(round(s, 1))
+            s -= 0.5
+        if round(min_sz, 1) not in sizes:
+            sizes.append(round(min_sz, 1))
+        sizes.sort(reverse=True)
+
+        for blocks in block_variants:
+            for fs in sizes:
+                if fs < min_sz - 0.01:
+                    continue
+                leading = fs * leading_ratio
+                if leading <= 0 or total_height / leading < 1:
+                    continue
+
+                fc = FontConfig(
+                    font_name=font_name, font_name_bold=font_name_bold,
+                    font_size=fs, leading_ratio=leading_ratio, h_scale=1.0,
+                )
+                result = layout_flow_content(blocks, flow_regions, fc)
+                if not result.overflow:
+                    hs = 1.0
+                else:
+                    hs_lo, hs_hi = 0.1, 1.0
+                    hs = None
+                    for _ in range(20):
+                        mid = (hs_lo + hs_hi) / 2
+                        fc2 = FontConfig(
+                            font_name=font_name, font_name_bold=font_name_bold,
+                            font_size=fs, leading_ratio=leading_ratio, h_scale=mid,
+                        )
+                        r2 = layout_flow_content(blocks, flow_regions, fc2)
+                        if not r2.overflow:
+                            hs = mid
+                            hs_lo = mid
+                        else:
+                            hs_hi = mid
+                    if hs is None:
+                        continue
+                    hs = math.floor(hs * 100) / 100
+
+                if (hs > b_hs + 0.005) or \
+                   (abs(hs - b_hs) <= 0.005 and fs > b_fs):
+                    b_fs, b_hs, b_blk = fs, hs, blocks
+
+        return b_fs, b_hs, b_blk
+
+    # ── Pass 1: 首选 min_size = content × title_ratio ──
+    best_fs, best_hs, best_blocks = _search_best(preferred_min)
+
+    # ── Pass 2: 若压缩过重，放宽到法规最小字号 ──
+    if best_hs < 0.7 and regulatory_min < preferred_min:
+        fs2, hs2, blk2 = _search_best(regulatory_min)
+        if hs2 > best_hs + 0.01:
+            best_fs, best_hs, best_blocks = fs2, hs2, blk2
+
+    # ── 渲染或 dry-run ──
+    fc = FontConfig(
+        font_name=font_name, font_name_bold=font_name_bold,
+        font_size=best_fs, leading_ratio=leading_ratio, h_scale=best_hs,
+    )
+    result = layout_flow_content(best_blocks, flow_regions, fc,
+                                 canvas=canvas)
+    return best_fs, best_hs, result
