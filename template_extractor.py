@@ -51,6 +51,10 @@ class TemplateConfig:
     page_height: float
     source_file: str = ""
 
+    # 控制排版版式的模板元数据配置
+    nut_table_type: str = "standard_3col"  # 默认使用单语言3列表
+    content_type: str = "standard_single"  # 默认使用单语言带前缀正文
+
     # 简单矩形区域用 TemplateRegion
     nut_table: Optional[TemplateRegion] = None
     net_volume: Optional[TemplateRegion] = None
@@ -61,6 +65,8 @@ class TemplateConfig:
     content_rects: List[TemplateRegion] = field(default_factory=list)
     # 环保标：每个青色矩形 = 一个图标槽位，按从左到右排序
     eco_icon_rects: List[TemplateRegion] = field(default_factory=list)
+
+    nut_table_type: str = "standard_3col"
 
     @property
     def title(self) -> Optional[TemplateRegion]:
@@ -136,14 +142,26 @@ _COLOR_MAP: Dict[str, Tuple[float, float, float]] = {
     "logo":       (0.94, 0.81, 0.16),   # 🟡 黄色 #f0ce29
 }
 
-_COLOR_TOLERANCE = 0.15
+_COLOR_TOLERANCE = 0.25  # 增加容差以兼容半透明叠加或设计师取色偏差
 
 
 def _match_color(fill: Tuple[float, ...]) -> Optional[str]:
     """将填充色与已知色块匹配，返回区域名称或 None"""
-    if len(fill) < 3:
+    if not fill or len(fill) < 1:
         return None
-    r, g, b = fill[0], fill[1], fill[2]
+        
+    if len(fill) == 4:
+        # CMYK to RGB
+        c_val, m_val, y_val, k_val = fill
+        r = (1 - c_val) * (1 - k_val)
+        g = (1 - m_val) * (1 - k_val)
+        b = (1 - y_val) * (1 - k_val)
+    else:
+        # RGB or Gray
+        r = fill[0]
+        g = fill[1] if len(fill) > 1 else fill[0]
+        b = fill[2] if len(fill) > 2 else fill[0]
+
     best_name = None
     best_dist = float("inf")
     for name, (cr, cg, cb) in _COLOR_MAP.items():
@@ -302,58 +320,55 @@ def extract_template_regions(ai_path: str) -> TemplateConfig:
         TemplateConfig: 包含各区域位置的配置对象（PDF 坐标系）
     """
     doc = fitz.open(ai_path)
-    page = doc[0]
-    W = page.rect.width
-    H = page.rect.height
+    
+    total_W = sum(page.rect.width for page in doc)
+    max_H = max(page.rect.height for page in doc)
 
     config = TemplateConfig(
-        page_width=W,
-        page_height=H,
+        page_width=total_W,
+        page_height=max_H,
         source_file=ai_path,
     )
 
-    # 多矩形区域（L 型支持）—— 同色取面积最大的一组
-    multi_rect_names = {"title", "content"}
-    # 累积多矩形区域 —— 同色的每个矩形单独保留
-    accum_rect_names = {"eco_icons"}
+    # 累积多矩形区域 —— 所有同色矩形均保留（支持L型和被割裂的多个区块）
+    accum_rect_names = {"title", "content", "eco_icons"}
     # 简单矩形区域
     simple_rect_names = {"nut_table", "net_volume", "logo"}
 
-    for d in page.get_drawings():
-        fill = d.get("fill")
-        if fill is None:
-            continue
+    current_x_offset = 0
+    for page in doc:
+        H = page.rect.height
+        for d in page.get_drawings():
+            fill = d.get("fill")
+            if fill is None:
+                continue
 
-        region_name = _match_color(fill)
-        if region_name is None:
-            continue
+            region_name = _match_color(fill)
+            if region_name is None:
+                continue
 
-        rect = d["rect"]
-        if rect.width < 5 or rect.height < 5:
-            continue
+            rect = d["rect"]
+            if rect.width < 5 or rect.height < 5:
+                continue
 
-        if region_name in multi_rect_names:
-            # 分解多边形为矩形列表（取面积最大的一组）
-            rects = _polygon_to_rects(d["items"], H)
-            attr = f"{region_name}_rects"
-            existing = getattr(config, attr)
-            new_area = sum(r.width * r.height for r in rects)
-            old_area = sum(r.width * r.height for r in existing)
-            if new_area > old_area:
-                setattr(config, attr, rects)
-        elif region_name in accum_rect_names:
-            # 累积：每个同色矩形单独保留（如多个环保标槽位）
-            rects = _polygon_to_rects(d["items"], H)
-            config.eco_icon_rects.extend(rects)
-        else:
-            # 简单矩形
-            rects = _polygon_to_rects(d["items"], H)
-            if rects:
-                region = rects[0]  # 取第一个（应该只有一个）
-                existing = getattr(config, region_name)
-                if existing is None or (region.width * region.height
-                                        > existing.width * existing.height):
-                    setattr(config, region_name, region)
+            if region_name in accum_rect_names:
+                # 累积：保留所有被识别的矩形碎片
+                rects = _polygon_to_rects(d["items"], H)
+                for r in rects:
+                    r.x += current_x_offset
+                attr = f"{region_name}_rects" if region_name in ("title", "content") else "eco_icon_rects"
+                getattr(config, attr).extend(rects)
+            else:
+                # 简单矩形
+                rects = _polygon_to_rects(d["items"], H)
+                if rects:
+                    region = rects[0]  # 取第一个（应该只有一个）
+                    region.x += current_x_offset
+                    existing = getattr(config, region_name)
+                    if existing is None or (region.width * region.height
+                                            > existing.width * existing.height):
+                        setattr(config, region_name, region)
+        current_x_offset += page.rect.width
 
     doc.close()
 

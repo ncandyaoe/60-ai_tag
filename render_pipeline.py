@@ -43,11 +43,15 @@ def _register_font():
     static_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static")
     alibaba_r = os.path.join(static_dir, "Alibaba-PuHuiTi-Regular.ttf")
     alibaba_b = os.path.join(static_dir, "Alibaba-PuHuiTi-Bold.ttf")
+    alibaba_h = os.path.join(static_dir, "AlibabaPuHuiTi-3-105-Heavy.ttf")
 
     if os.path.isfile(alibaba_r) and os.path.getsize(alibaba_r) > 100_000:
         pdfmetrics.registerFont(TTFont("AliPuHuiTi", alibaba_r))
         if os.path.isfile(alibaba_b) and os.path.getsize(alibaba_b) > 100_000:
             pdfmetrics.registerFont(TTFont("AliPuHuiTi-Bold", alibaba_b))
+    
+    if os.path.isfile(alibaba_h) and os.path.getsize(alibaba_h) > 50_000:
+        pdfmetrics.registerFont(TTFont("AlibabaPuHuiTi-3-105-Heavy", alibaba_h))
 
     _FONT_REGISTERED = True
 
@@ -148,6 +152,7 @@ def render_label(
     data: dict,
     country_cfg: Optional[dict] = None,
     show_regions: bool = False,
+    country_code: Optional[str] = None,
 ) -> bytes:
     """
     解耦式标签渲染管线。
@@ -173,6 +178,11 @@ def render_label(
     """
     _register_font()
     country_cfg = country_cfg or {}
+
+    if not country_code:
+        country_code = data.get("target_country", "DEFAULT").upper()
+        if country_code == "EU":
+            country_code = "EU_MULTI"
 
     # 1. 获取模板配置
     if isinstance(template_or_path, str):
@@ -233,7 +243,11 @@ def render_label(
 
     # 营养表
     if template.nut_table:
-        render_nutrition(c, template.nut_table, data, country_cfg)
+        render_nutrition(
+            c, template.nut_table, data, country_cfg,
+            nut_table_type=getattr(template, "nut_table_type", ""),
+            country_code=country_code,
+        )
 
     # Net Volume
     if template.net_volume:

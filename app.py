@@ -14,6 +14,7 @@ from label_renderer import generate_label_preview_html, generate_label_pdf, pdf_
 from template_extractor import extract_template_regions
 from render_pipeline import render_label
 from flow_layout import FlowRect
+from template_store import list_templates, get_template_path
 
 # ==========================================
 # Jinja2 模板环境：加载 templates/ 目录下的模板
@@ -209,15 +210,22 @@ PLM_EXAMPLE_3 = {
     "manufacturer_address": "",
     "importer_info": "**Importer / Importeur / Importador / Importateur:** JINGDONG RETAIL (NETHERLANDS) B.V.\nDa Vincistraat 5, 2652XE, Berkel en Rodenrijs, The Netherlands",
     "target_country": "NL",
-    "nutrition": {"serving_size": "100mL", "table_data": [
-        {"name": "Energy", "per_serving": "706 kJ / 167 kcal"},
-        {"name": "Fat", "per_serving": "0 g"},
-        {"name": "  -Saturates", "per_serving": "0 g"},
-        {"name": "Carbohydrate", "per_serving": "32 g"},
-        {"name": "  -Sugars", "per_serving": "7.1 g"},
-        {"name": "Protein", "per_serving": "11 g"},
-        {"name": "Salt", "per_serving": "18.8 g"},
-    ]},
+    "nutrition": {
+        "serving_size": "100mL",
+        "nut_title": "Nutrition declaration / Voedingswaardevermelding / Información nutricional / Nährwertdeklaration / Déclaration nutritionnelle",
+        "nut_subtitle": "Nutrition facts per / Voedingswaarde per / Valor nutricional por / Nährwerte pro / Valeur nutritive pour 100mL",
+        "table_data": [
+            {"name": "Energy / Energie / Valor energético / Energie / Énergie", "per_serving": "706 kJ / 167 kcal"},
+            {"name": "Fat / Vetten / Grasas / Fett / Matières grasses", "per_serving": "0 g"},
+            {"name": "of which / waarvan / de las cuales / davon / dont", "per_serving": "", "is_sub": True},
+            {"name": "-Saturates / Verzadigde vetzuren / Saturadas / gesättigte Fettsäuren / Acides gras saturés", "per_serving": "0 g", "is_sub": True},
+            {"name": "Carbohydrate / Koolhydraten / Hidratos de carbono / Kohlenhydrate / Glucides", "per_serving": "32 g"},
+            {"name": "of which / waarvan / de las cuales / davon / dont", "per_serving": "", "is_sub": True},
+            {"name": "-Sugars / Suikers / Azúcares / Zucker / Sucres", "per_serving": "7.1 g", "is_sub": True},
+            {"name": "Protein / Eiwitten / Proteínas / Eiweiß / Protéines", "per_serving": "11 g"},
+            {"name": "Salt / Zout / Sal / Salz / Sel", "per_serving": "18.8 g"},
+        ],
+    },
 }
 
 # 场景4：竖版标签，耗油（德国，测试中等标题长度+极长配料表）
@@ -287,13 +295,21 @@ PLM_EXAMPLES = {
 # --------------------------------------------------
 st.title("🏷️ 智能合规标签排版系统")
 
-TEMPLATE_OPTIONS = {
-    "默认 3×3 方形标签 (70×69mm)": "classic",
-    "竖版标签 (50×120mm)": "vertical_50_120",
-}
+def _build_template_options():
+    """动态构建模板选项：内置 + 用户上传。"""
+    opts = {
+        "默认 3×3 方形标签 (70×69mm)": ("classic", None),
+        "竖版标签 (50×120mm)": ("vertical_50_120", None)
+    }
+    for tmpl in list_templates():
+        label = f"{tmpl['name']} ({tmpl['dimensions_mm']})"
+        opts[label] = ("ai_template", tmpl["id"])
+    return opts
+
+TEMPLATE_OPTIONS = _build_template_options()
 
 selected_template_name = st.selectbox("📏 选择物理标签模板：", list(TEMPLATE_OPTIONS.keys()))
-selected_template = TEMPLATE_OPTIONS[selected_template_name]
+selected_template_type, selected_template_id = TEMPLATE_OPTIONS[selected_template_name]
 show_regions = st.checkbox("🔍 显示区域图层", value=False, help="叠加彩色区域边界，用于调试布局")
 
 st.markdown("---")
@@ -331,6 +347,8 @@ with col1:
     if st.button("✅ 生成标签", type="primary"):
         try:
             structured_data = json.loads(json_input)
+            # 强行覆盖目标国家，使用户在下拉框的选择优先级高于单纯的文本拷贝
+            structured_data["target_country"] = selected_country_code
             st.session_state['label_data'] = structured_data
             st.session_state['country_code'] = selected_country_code
             st.success("JSON 解析成功，标签已生成！")
@@ -338,16 +356,16 @@ with col1:
             st.error(f"JSON 格式错误，请检查输入：{e}")
 
 with col2:
-    if selected_template == "classic":
+    if selected_template_type == "classic":
         st.subheader("2. 物理 PDF 合规排版 (3×3 · 76mm)")
     else:
-        st.subheader("2. 物理 PDF 合规排版 (竖版 50×120mm)")
+        st.subheader(f"2. 物理 PDF 合规排版 ({selected_template_name})")
 
     if 'label_data' in st.session_state:
         cc = st.session_state.get('country_code', 'DEFAULT')
         data = st.session_state['label_data']
 
-        if selected_template == "classic":
+        if selected_template_type == "classic":
             # --------------------------------------------------
             # [改造项3] 合规校验
             # --------------------------------------------------
@@ -395,25 +413,26 @@ with col2:
                 )
             else:
                 st.button("⬇ 下载 PDF（送厂印刷）", disabled=True, help="字高不合规，禁止下载")
-                
-        elif selected_template == "vertical_50_120":
+
+        elif selected_template_type == "vertical_50_120":
             st.info("💡 竖版标签使用智能自适应布局引擎，内置防溢出规则并自动保证合规字高（无需额外校验检查）。")
             country_cfg = get_country_config(cc)
             
             # 使用固定提供给设计师的那个竖版老抽模板
-            # 实际场景可根据传入参数动态获取模板路径
-            # relative path to root: 
             ai_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "0-需求文档", "1-竖版标签", "荷兰0草老", "多环保标-25500015414 500mL荷兰京东国际0草菇老抽小标签(50x120mm) 202510-02.ai")
             
             if not os.path.exists(ai_path):
-                st.error(f"找不到模板文件: {ai_path}")
+                st.error(f"找不到内置模板文件：{ai_path}")
             else:
                 cfg_tmpl = extract_template_regions(ai_path)
+                # 取消固定模板赋值，交由内部自适应布局判断
+                # cfg_tmpl.nut_table_type = "multilingual_2col"
+                cfg_tmpl.content_type = "multilingual"         # 内置示例固定为多语言单表
                 pdf_bytes = render_label(cfg_tmpl, data, country_cfg, show_regions=show_regions)
-                
+
                 # 生成 PNG 预览 (高分屏 216 DPI)
                 png_b64 = pdf_to_png_base64(pdf_bytes, dpi=216)
-                
+
                 preview_html = f"""<!DOCTYPE html>
                 <html><head><meta charset="UTF-8"><style>
                 body {{ margin:0; padding:0; background:#4a4a4a; display:flex; justify-content:center; padding: 20px; }}
@@ -421,10 +440,48 @@ with col2:
                 </style></head><body>
                 <img src="data:image/png;base64,{png_b64}" alt="Label Preview" />
                 </body></html>"""
-                
+
                 st.components.v1.html(preview_html, height=800, scrolling=True)
-                
+
                 filename = (data.get('product_name_en', 'label').replace(' ', '_') + '_Vertical.pdf')
+                st.download_button(
+                    label="⬇ 下载 PDF（送厂印刷）",
+                    data=pdf_bytes,
+                    file_name=filename,
+                    mime="application/pdf",
+                    type="primary",
+                )
+
+        elif selected_template_type == "ai_template" and selected_template_id:
+            st.info("💡 自定义模板使用智能自适应布局引擎，内置防溢出规则并自动保证合规字高。")
+            country_cfg = get_country_config(cc)
+
+            ai_path = get_template_path(selected_template_id)
+            if not ai_path or not os.path.exists(ai_path):
+                st.error("找不到模板文件，可能已被删除。请到 📐 模板管理 页面重新上传。")
+            else:
+                cfg_tmpl = extract_template_regions(ai_path)
+                from template_store import get_template
+                t_info = get_template(selected_template_id)
+                if t_info:
+                    cfg_tmpl.nut_table_type = t_info.get("nut_table_type", "standard_3col")
+                    cfg_tmpl.content_type = t_info.get("content_type", "standard_single")
+                pdf_bytes = render_label(cfg_tmpl, data, country_cfg, show_regions=show_regions)
+
+                # 生成 PNG 预览 (高分屏 216 DPI)
+                png_b64 = pdf_to_png_base64(pdf_bytes, dpi=216)
+
+                preview_html = f"""<!DOCTYPE html>
+                <html><head><meta charset="UTF-8"><style>
+                body {{ margin:0; padding:0; background:#4a4a4a; display:flex; justify-content:center; padding: 20px; }}
+                img {{ max-width:100%; box-shadow:0 4px 16px rgba(0,0,0,0.5); }}
+                </style></head><body>
+                <img src="data:image/png;base64,{png_b64}" alt="Label Preview" />
+                </body></html>"""
+
+                st.components.v1.html(preview_html, height=800, scrolling=True)
+
+                filename = (data.get('product_name_en', 'label').replace(' ', '_') + '_Custom.pdf')
                 st.download_button(
                     label="⬇ 下载 PDF（送厂印刷）",
                     data=pdf_bytes,

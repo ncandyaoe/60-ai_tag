@@ -1,0 +1,101 @@
+{
+  "templates": [
+    {
+      "id": "58f470a8",
+      "name": "加拿大黄豆酱",
+      "country_code": "CA",
+      "ai_filename": "58f470a8.ai",
+      "dimensions_mm": "133.0×55.0",
+      "created_at": "2026-03-25T19:50:29",
+      "regions_detected": [
+        "title",
+        "content",
+        "nut_table",
+        "net_volume",
+        "eco_icons"
+      ]
+    },
+    {
+      "id": "021d6c7b",
+      "name": "荷兰多语言测试",
+      "country_code": "NL",
+      "nut_table_type": "multilingual_2col",
+      "ai_filename": "021d6c7b.ai",
+      "dimensions_mm": "133.0×55.0",
+      "created_at": "2026-03-25T20:31:56",
+      "regions_detected": [
+        "title",
+        "content",
+        "nut_table",
+        "net_volume",
+        "eco_icons"
+      ]
+    },
+    {
+      "id": "1f2ef729",
+      "name": "单语言环保成分表",
+      "country_code": "CL",
+      "nut_table_type": "standard_3col",
+      "ai_filename": "1f2ef729.ai",
+      "dimensions_mm": "133.0×55.0",
+      "created_at": "2026-03-25T20:36:54",
+      "regions_detected": [
+        "title",
+        "content",
+        "nut_table",
+        "net_volume",
+        "eco_icons"
+      ]
+    },
+    {
+      "id": "1685eb65",
+      "name": "单语言-测试",
+      "country_code": "CL",
+      "nut_table_type": "standard_3col",
+      "ai_filename": "1685eb65.ai",
+      "dimensions_mm": "123.0×70.0",
+      "created_at": "2026-03-25T20:38:13",
+      "regions_detected": [
+        "title",
+        "content",
+        "nut_table",
+        "net_volume",
+        "eco_icons"
+      ]
+    },
+    {
+      "id": "5b826f74",
+      "name": "单语言测试",
+      "country_code": "CL",
+      "nut_table_type": "standard_3col",
+      "content_type": "standard_single",
+      "ai_filename": "5b826f74.ai",
+      "dimensions_mm": "133.0×55.0",
+      "created_at": "2026-03-25T20:49:28",
+      "regions_detected": [
+        "title",
+        "content",
+        "nut_table",
+        "net_volume",
+        "eco_icons"
+      ]
+    },
+    {
+      "id": "45a0d398",
+      "name": "澳大利亚-营养表",
+      "country_code": "CL",
+      "nut_table_type": "australian_3col",
+      "content_type": "standard_single",
+      "ai_filename": "45a0d398.ai",
+      "dimensions_mm": "133.0×55.0",
+      "created_at": "2026-03-26T06:31:56",
+      "regions_detected": [
+        "title",
+        "content",
+        "nut_table",
+        "net_volume",
+        "eco_icons"
+      ]
+    }
+  ]
+}

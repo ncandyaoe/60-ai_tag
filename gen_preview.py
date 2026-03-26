@@ -18,15 +18,22 @@ PLM_EXAMPLE_3 = {
     "manufacturer_address": "",
     "importer_info": "**Importer / Importeur / Importador / Importateur:** JINGDONG RETAIL (NETHERLANDS) B.V.\nDa Vincistraat 5, 2652XE, Berkel en Rodenrijs, The Netherlands",
     "target_country": "NL",
-    "nutrition": {"serving_size": "100mL", "table_data": [
-        {"name": "Energy", "per_serving": "706 kJ / 167 kcal"},
-        {"name": "Fat", "per_serving": "0 g"},
-        {"name": "  -Saturates", "per_serving": "0 g"},
-        {"name": "Carbohydrate", "per_serving": "32 g"},
-        {"name": "  -Sugars", "per_serving": "7.1 g"},
-        {"name": "Protein", "per_serving": "11 g"},
-        {"name": "Salt", "per_serving": "18.8 g"},
-    ]},
+    "nutrition": {
+        "serving_size": "100mL",
+        "nut_title": "Nutrition declaration / Voedingswaardevermelding / Información nutricional / Nährwertdeklaration / Déclaration nutritionnelle",
+        "nut_subtitle": "Nutrition facts per / Voedingswaarde per / Valor nutricional por / Nährwerte pro / Valeur nutritive pour 100mL",
+        "table_data": [
+            {"name": "Energy / Energie / Valor energético / Energie / Énergie", "per_serving": "706 kJ / 167 kcal"},
+            {"name": "Fat / Vetten / Grasas / Fett / Matières grasses", "per_serving": "0 g"},
+            {"name": "of which / waarvan / de las cuales / davon / dont", "per_serving": "", "is_sub": True},
+            {"name": "-Saturates / Verzadigde vetzuren / Saturadas / gesättigte Fettsäuren / Acides gras saturés", "per_serving": "0 g", "is_sub": True},
+            {"name": "Carbohydrate / Koolhydraten / Hidratos de carbono / Kohlenhydrate / Glucides", "per_serving": "32 g"},
+            {"name": "of which / waarvan / de las cuales / davon / dont", "per_serving": "", "is_sub": True},
+            {"name": "-Sugars / Suikers / Azúcares / Zucker / Sucres", "per_serving": "7.1 g", "is_sub": True},
+            {"name": "Protein / Eiwitten / Proteínas / Eiweiß / Protéines", "per_serving": "11 g"},
+            {"name": "Salt / Zout / Sal / Salz / Sel", "per_serving": "18.8 g"},
+        ],
+    },
 }
 
 def main():
@@ -41,7 +48,7 @@ def main():
         
         # Decode and save to file
         png_data = base64.b64decode(b64_str)
-        out_path = "/Users/mulele/.gemini/antigravity/brain/98f900e7-0c16-4724-8ced-24a7fcaffdc1/preview_multi.png"
+        out_path = "/Users/mulele/.gemini/antigravity/brain/8709239d-2b92-4f83-9229-79c449a52fce/preview_multi.png"
         with open(out_path, "wb") as f:
             f.write(png_data)
         print(f"Successfully created {out_path}")

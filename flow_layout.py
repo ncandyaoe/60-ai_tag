@@ -435,13 +435,17 @@ def find_best_font_size(
     max_size: float = 16.0,
     min_h_scale: float = 0.35,
     iterations: int = 20,
+    optimize_fill: bool = False,
 ) -> tuple:
     """
-    三阶段自适应搜索（优先不压缩）：
+    自适应搜索（优先不压缩）：
 
     第一阶段：二分搜索字号（max_size → hard_min=4pt），h_scale=1.0
              优先找到最大的不压缩字号。如果结果 < min_size，标签会合规警告，
              但文字依然保持正常宽度，不会被压扁。
+    第 1.5 阶段（optimize_fill=True 时启用）：纵向填满优化
+             当纵向利用率 < 92% 时，尝试更大字号 + 适度横向压缩（h_scale ≥ 0.65）
+             来填满纵向空间，减少底部留白。
     第二阶段：若到 4pt 仍溢出（极端场景），固定字号=min_size，
              二分搜索 h_scale（1.0 → min_h_scale）
     第三阶段：若 min_h_scale 仍溢出，固定 h_scale=min_h_scale，
@@ -487,6 +491,82 @@ def find_best_font_size(
 
     if not result_min.overflow:
         # 第一阶段就够了，不需要横向压缩
+
+        # ---- 第 1.5 阶段：纵向填满优化 ----
+        # 当 optimize_fill=True 时，检查纵向利用率。
+        # 如果底部还有大量留白，尝试用更大字号 + 适度横向压缩来填满。
+        if optimize_fill:
+            fc_check = FontConfig(
+                font_name=font_name, font_name_bold=font_name_bold,
+                font_size=best_size, leading_ratio=leading_ratio, h_scale=1.0,
+            )
+            result_check = layout_flow_content(blocks, flow_regions, fc_check)
+            total_region_h = sum(r.height for r in flow_regions)
+            used_h = sum(result_check.region_usage)
+            fill_ratio = used_h / total_region_h if total_region_h > 0 else 1.0
+
+            if fill_ratio < 0.92:
+                # 纵向利用率不足，尝试更大字号 + 适度压缩
+                fill_hs_floor = 0.65  # 填满优化时的 h_scale 下限（保持可读性）
+                opt_best_size = best_size
+                opt_best_hs = 1.0
+                opt_best_fill = fill_ratio
+
+                # 从当前 best_size 往上以 0.5pt 步长搜索
+                candidate = best_size + 0.5
+                while candidate <= max_size:
+                    # 先检查 h_scale=1.0 是否溢出
+                    fc_try = FontConfig(
+                        font_name=font_name, font_name_bold=font_name_bold,
+                        font_size=candidate, leading_ratio=leading_ratio, h_scale=1.0,
+                    )
+                    r_try = layout_flow_content(blocks, flow_regions, fc_try)
+                    if not r_try.overflow:
+                        # 不溢出 → h_scale=1.0 就行，计算填充率
+                        used = sum(r_try.region_usage)
+                        fr = used / total_region_h if total_region_h > 0 else 1.0
+                        if fr > opt_best_fill + 0.03:
+                            opt_best_size = candidate
+                            opt_best_hs = 1.0
+                            opt_best_fill = fr
+                    else:
+                        # 溢出 → 二分搜索 h_scale（从 1.0 到 fill_hs_floor）
+                        hs_lo_f, hs_hi_f = fill_hs_floor, 1.0
+                        found_hs = None
+                        for _ in range(iterations):
+                            hs_mid_f = (hs_lo_f + hs_hi_f) / 2
+                            fc_f = FontConfig(
+                                font_name=font_name, font_name_bold=font_name_bold,
+                                font_size=candidate, leading_ratio=leading_ratio,
+                                h_scale=hs_mid_f,
+                            )
+                            r_f = layout_flow_content(blocks, flow_regions, fc_f)
+                            if not r_f.overflow:
+                                found_hs = hs_mid_f
+                                hs_lo_f = hs_mid_f
+                            else:
+                                hs_hi_f = hs_mid_f
+
+                        if found_hs is not None:
+                            found_hs = math.floor(found_hs * 100) / 100
+                            fc_eval = FontConfig(
+                                font_name=font_name, font_name_bold=font_name_bold,
+                                font_size=candidate, leading_ratio=leading_ratio,
+                                h_scale=found_hs,
+                            )
+                            r_eval = layout_flow_content(blocks, flow_regions, fc_eval)
+                            used = sum(r_eval.region_usage)
+                            fr = used / total_region_h if total_region_h > 0 else 1.0
+                            if fr > opt_best_fill + 0.03:
+                                opt_best_size = candidate
+                                opt_best_hs = found_hs
+                                opt_best_fill = fr
+
+                    candidate += 0.5
+
+                opt_best_size = math.floor(opt_best_size * 100) / 100
+                return opt_best_size, opt_best_hs
+
         return best_size, 1.0
 
     # ---- 第二阶段：固定 min_size，搜索 h_scale ----
@@ -577,16 +657,17 @@ def _auto_format_ingredients(ingr_text: str, allergens_text: str) -> str:
             
     return text
 
-def plm_to_blocks(data: dict, target_country: str = "DEFAULT") -> List[TextBlock]:
+def plm_to_blocks(data: dict, target_country: str = "DEFAULT", content_type: str = "standard_single") -> List[TextBlock]:
     """
     将 PLM JSON 数据转换为 TextBlock 列表。
-    根据目标国家的配置决定使用单语言（带强前缀）或多语言（读取原始格式）策略。
+    根据 content_type 决定使用单语言（带强前缀）或是多语言（读取原始格式）。
+    由于采用了明确分类处理，未来如需添加其他正文版式风格，只需在下方追加判断分支即可。
     """
     from country_config import get_country_config
     blocks = []
     
     cfg = get_country_config(target_country)
-    is_multi = cfg.get("is_multilingual", False)
+    is_multi = (content_type == "multilingual")
 
     if is_multi:
         # ------- 多语言模式 -------
