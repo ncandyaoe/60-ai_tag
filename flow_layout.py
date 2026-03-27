@@ -24,6 +24,7 @@ from reportlab.pdfbase.ttfonts import TTFont
 _FONT_REGISTERED = False
 _FONT_NAME = "Helvetica"
 _FONT_NAME_BOLD = "Helvetica-Bold"
+_FONT_NAME_HEAVY = "Helvetica-Bold"
 
 def _register_font():
     """注册阿里巴巴普惠体，降级到 Helvetica"""
@@ -33,14 +34,24 @@ def _register_font():
     static_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static")
     alibaba_r = os.path.join(static_dir, "Alibaba-PuHuiTi-Regular.ttf")
     alibaba_b = os.path.join(static_dir, "Alibaba-PuHuiTi-Bold.ttf")
+    alibaba_h = os.path.join(static_dir, "AlibabaPuHuiTi-3-105-Heavy.ttf")
     if os.path.isfile(alibaba_r) and os.path.getsize(alibaba_r) > 100_000:
         pdfmetrics.registerFont(TTFont("AliPuHuiTi", alibaba_r))
+        
         if os.path.isfile(alibaba_b) and os.path.getsize(alibaba_b) > 100_000:
             pdfmetrics.registerFont(TTFont("AliPuHuiTi-Bold", alibaba_b))
         else:
             pdfmetrics.registerFont(TTFont("AliPuHuiTi-Bold", alibaba_r))
+            
+        if os.path.isfile(alibaba_h) and os.path.getsize(alibaba_h) > 100_000:
+            pdfmetrics.registerFont(TTFont("AliPuHuiTi-Heavy", alibaba_h))
+        else:
+            pdfmetrics.registerFont(TTFont("AliPuHuiTi-Heavy", alibaba_b if os.path.isfile(alibaba_b) else alibaba_r))
+            
         _FONT_NAME = "AliPuHuiTi"
         _FONT_NAME_BOLD = "AliPuHuiTi-Bold"
+        global _FONT_NAME_HEAVY
+        _FONT_NAME_HEAVY = "AliPuHuiTi-Heavy"
     _FONT_REGISTERED = True
 
 _register_font()

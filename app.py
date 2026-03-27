@@ -315,6 +315,78 @@ PLM_EXAMPLE_6 = {
     }
 }
 
+# 场景7：马来西亚（双列全网格，无缩进子项，Per 100g 居中居左）
+PLM_EXAMPLE_7 = {
+    "product_name_en": "MUSHROOM VEGETARIAN OYSTER FLAVOURED SAUCE",
+    "product_name_cn": "香菇素蚝油",
+    "net_weight": "Net Weight: 615 g",
+    "drained_weight": "",
+    "ingredients": "Water, Brewed Soy Sauce(Water, Soybeans, Salt, Wheat (Gluten)), Sugar, Salt, Flavour Enhancer(Monosodium Glutamate), Modified Starch(Hydroxypropyl Distarch Phosphate), Brewed Vinegar, Shiitake Mushroom (1%), Boletus, King Trumpet Mushroom, Flavour Enhancer(Disodium 5'-Ribonucleotides), Flavour Enhancer(Yeast Extract), Acidity Regulator (Citric Acid).",
+    "allergens": "Soybeans, Wheat(Gluten).",
+    "storage": "Please keep it in cool and dry place. Tightly close lid after use and keep refrigerated. / Serve with stir-fry cooking.",
+    "production_date": "See on package",
+    "best_before": "See on package",
+    "origin": "Product of China",
+    "manufacturer": "Foshan Haitian (Gaoming) Flavouring & Food Co., Ltd.",
+    "manufacturer_address": "Eastern Park(No.889 Gaoming Road), Cangjiang Industrial Park, Gaoming District, Foshan, Guangdong, China",
+    "importer_info": "Imported by: HADAY MALAYSIA SDN. BHD.\nAddress: LOT 5, JALAN CJ 1/7 TAMAN CHERAS JAYA 43200 CHERAS SELANGOR MALAYSIA\nTel: 03-90821838",
+    "brand_logo": "",
+    "is_halal": False,
+    "target_country": "MY",
+    "nutrition": {
+        "serving_size": "15 g",
+        "servings_per_package": "41",
+        "table_data": [
+            {"name": "Energy",       "per_100g": "105 kcal/442 kJ", "per_serving": "16 kcal/66 kJ"},
+            {"name": "Carbohydrate", "per_100g": "21.1 g",          "per_serving": "3.2 g"},
+            {"name": "Total sugars", "per_100g": "15.7 g",          "per_serving": "2.4 g"},
+            {"name": "Protein",      "per_100g": "4.4 g",           "per_serving": "0.7 g"},
+            {"name": "Fat",          "per_100g": "0.2 g",           "per_serving": "0 g"},
+            {"name": "Sodium",       "per_100g": "4502 mg",         "per_serving": "675 mg"}
+        ]
+    }
+}
+
+# 场景8：加拿大（双语，特殊粗实线分组，附带脚注）
+PLM_EXAMPLE_8 = {
+    "product_name_en": "DELICIOUS LIGHT SOY SAUCE",
+    "product_name_cn": "鲜味生抽",
+    "net_weight": "500 mL",
+    "drained_weight": "",
+    "ingredients": "Water, Soybeans, Salt, Wheat, Monosodium glutamate, Wheat flour, Glucose-fructose, Caramel, Rice, Disodium 5'-inosinate, Disodium 5'-ribonucleotide, Potassium sorbate, Sucralose.\nContains: Soybeans, Wheat.",
+    "allergens": "Eau, Soja, Sel, Blé, Glutamate monosodique, Farine de blé, Fructose-glucose, Couleur caramel, Riz, 5'-inosinate disodique, 5'-ribonucléotide disodique, Sorbate de potassium, Sucralose.\nContient: Soja, Blé.",
+    "storage": "Best before: see the package/Meilleur avant: voir emballage\nPlease keep it in cool and dry place. Tightly close lid after use and keep refrigerated.\nVeuillez le conserver dans un endroit frais et sec. Bien fermer le couvercle après utilisation et conserver au réfrigérateur.",
+    "production_date": "",
+    "best_before": "see the package/voir emballage",
+    "origin": "Product of China / Produit de Chine",
+    "manufacturer": "Foshan Haitian (Gaoming) Flavouring & Food Co., Ltd.",
+    "manufacturer_address": "Eastern Park(No.889 Gaoming Road), Cangjiang Industrial Park, Gaoming District, Foshan, Guangdong, China",
+    "importer_info": "Imported by / Importé par:\nFive Continents International LTD\nAddress/Adresse:\n1880 Birchmount Road,Scarborough,\nON M1P 2J7",
+    "brand_logo": "",
+    "is_halal": False,
+    "target_country": "CA",
+    "nutrition": {
+        "serving_size": "1 tbsp (18 g)",
+        "servings_per_package": "",
+        "table_data": [
+            {"name": "Fat / Lipides 1 g", "nrv": "1 %", "heavy": True, "hide_line_below": True, "height_ratio": 0.8},
+            {"name": "Saturated / saturées 0 g", "nrv": "0 %", "is_sub": True, "hide_line_below": True, "height_ratio": 0.8},
+            {"name": "+ Trans / trans 0 g", "nrv": "", "is_sub": True, "padded_line_below": True, "height_ratio": 0.8},
+            {"name": "Carbohydrate / Glucides 3 g", "nrv": "", "hide_line_below": True, "height_ratio": 0.8},
+            {"name": "Fibre / Fibres 1 g", "nrv": "4 %", "is_sub": True, "hide_line_below": True, "height_ratio": 0.8},
+            {"name": "Sugars / Sucres 2 g", "nrv": "2 %", "is_sub": True, "padded_line_below": True, "height_ratio": 0.8},
+            {"name": "Protein / Protéines 2 g", "nrv": "", "heavy": True, "padded_line_below": True},
+            {"name": "Cholesterol / Cholestérol 0 mg", "nrv": "", "heavy": True, "padded_line_below": True},
+            {"name": "Sodium 890 mg", "nrv": "39 %", "heavy": True},
+            {"name": "Potassium 100 mg", "nrv": "3 %"},
+            {"name": "Calcium 10 mg", "nrv": "1 %"},
+            {"name": "Iron / Fer 0.2 mg", "nrv": "1 %", "thick_line_below": True},
+            {"name": "* 5% or less is a little, 15% or more is a lot", "bold": False, "hide_line_below": True, "height_ratio": 0.8, "margin_top": 2.0},
+            {"name": "* 5% ou moins c'est peu, 15% ou plus c'est beaucoup", "bold": False, "hide_line_below": True, "height_ratio": 0.8}
+        ]
+    }
+}
+
 PLM_EXAMPLES = {
     "场景1 - 生抽酱油 (Wonderful Foods 进口)": PLM_EXAMPLE_1,
     "场景2 - 老抽酱油 (广州宝来星 进口)":     PLM_EXAMPLE_2,
@@ -322,6 +394,8 @@ PLM_EXAMPLES = {
     "场景4 - 特级蚝油 (含过敏原与极长配料 德国)": PLM_EXAMPLE_4,
     "场景5 - 纯正芝麻油 (短配料长提示语 法国)": PLM_EXAMPLE_5,
     "场景6 - 上等蚝油 (海天经典版 澳大利亚)": PLM_EXAMPLE_6,
+    "场景7 - 香菇素蚝油 (全网格表头 马来西亚)": PLM_EXAMPLE_7,
+    "场景8 - 鲜味生抽 (特殊分组表头 加拿大)": PLM_EXAMPLE_8,
 }
 
 # --------------------------------------------------
