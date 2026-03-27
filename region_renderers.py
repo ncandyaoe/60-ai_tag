@@ -232,8 +232,8 @@ def render_nutrition(
     MIN_FS = 4.0
     MAX_FS = 16.0
 
-    pad_ratio = 0.15
-    line_ratio = 0.85
+    pad_ratio = 0.0
+    line_ratio = getattr(layout, 'line_height_ratio', 1.15)
 
     def _total_height(fs):
         pad_y = fs * pad_ratio
@@ -318,9 +318,28 @@ def render_nutrition(
 
     global_tz = min(100.0, min_tz * 100)
 
-    def _baseline_y(rect_y, f_size):
-        cap_h = f_size * 0.70
-        return rect_y - cap_h
+    def _baseline_y(rect_y, f_size, r_h=None, text=None):
+        """计算文字基线 y 坐标，使文字在行高中垂直居中。
+        rect_y: 行的顶边 y 坐标
+        f_size: 字号
+        r_h:    行高（如不传则使用全局 row_h）
+        """
+        if r_h is None:
+            r_h = row_h
+        cap_h = f_size * _CAP_H_RATIO       # 大写字母高度
+        
+        has_descender = True
+        if text is not None:
+            has_descender = any(c in text for c in "gjpqy(),")
+            
+        if not has_descender:
+            # 纯上层字母平底居中
+            return rect_y - r_h / 2 - cap_h / 2
+        else:
+            desc_h = f_size * 0.22      # 下行字母深度（g, p, y 等）
+            glyph_h = cap_h + desc_h    # 字体视觉总高度
+            # 居中: 行高中心 - 字形中心偏移 = baseline
+            return rect_y - (r_h - glyph_h) / 2 - cap_h
 
     y = region.y - pad_y  # 顶边预留 pad_y
     table_top = y + pad_y
@@ -345,25 +364,38 @@ def render_nutrition(
         c.setFillColorRGB(txt_r, txt_g, txt_b)
 
         if hdr.multi_line:
-            line1_y = _baseline_y(y, local_fs)
-            line2_y = line1_y - local_lh
-
             for ci, cell_text in enumerate(hdr.cells):
                 if ci >= len(col_widths) or not cell_text:
                     continue
                 if hdr.template:
                     cell_text = _format_template_text(cell_text, nutrition)
                 lines = cell_text.split("\n")
-                font = _FONT_NAME_BOLD if hdr.bold else _FONT_NAME
-                _draw_compressed_text(
-                    c, lines[0], col_x_offsets[ci], line1_y,
-                    font, local_fs, col_widths[ci], align=layout.columns[ci].align,
-                    tz_override=global_tz,
-                )
-                if len(lines) > 1:
+                font = getattr(hdr, "font_override", None) or (_FONT_NAME_BOLD if hdr.bold else _FONT_NAME)
+                
+                if len(lines) == 1:
+                    text_y = _baseline_y(y, local_fs, cell_h, text=lines[0])
                     _draw_compressed_text(
-                        c, lines[1], col_x_offsets[ci], line2_y,
-                        font, local_fs, col_widths[ci], align=layout.columns[ci].align,
+                        c, lines[0], col_x_offsets[ci] + c_pad, text_y,
+                        font, local_fs, col_widths[ci] - c_pad * 2, align=layout.columns[ci].align,
+                        tz_override=global_tz,
+                    )
+                else:
+                    cap_h = local_fs * _CAP_H_RATIO
+                    desc_h = local_fs * 0.22
+                    tight_gap = local_fs * 0.95  # 极小行距用于紧凑排列
+                    block_h = tight_gap + cap_h + desc_h
+                    top_margin = (cell_h - block_h) / 2
+                    line1_y = y - top_margin - cap_h
+                    line2_y = line1_y - tight_gap
+                    
+                    _draw_compressed_text(
+                        c, lines[0], col_x_offsets[ci] + c_pad, line1_y,
+                        font, local_fs, col_widths[ci] - c_pad * 2, align=layout.columns[ci].align,
+                        tz_override=global_tz,
+                    )
+                    _draw_compressed_text(
+                        c, lines[1], col_x_offsets[ci] + c_pad, line2_y,
+                        font, local_fs, col_widths[ci] - c_pad * 2, align=layout.columns[ci].align,
                         tz_override=global_tz,
                     )
             y -= cell_h
@@ -375,8 +407,8 @@ def render_nutrition(
                 text = nutrition["nut_title"]
             elif not hdr.bold and hdr.span_full and nutrition.get("nut_subtitle"):
                 text = nutrition["nut_subtitle"]
-            
-            text_y = _baseline_y(y, local_fs)
+            text_y = _baseline_y(y, local_fs, cell_h, text=text)
+
             font = getattr(hdr, "font_override", None) or (_FONT_NAME_BOLD if hdr.bold else _FONT_NAME)
             
             lpad = 4 if hdr.fill_color else (0 if getattr(hdr, 'independent_tz', False) else c_pad)
@@ -394,7 +426,8 @@ def render_nutrition(
             )
             y -= cell_h
         else:
-            text_y = _baseline_y(y, local_fs)
+            row_text = "".join(hdr.cells)
+            text_y = _baseline_y(y, local_fs, cell_h, text=row_text)
             for ci, cell_text in enumerate(hdr.cells):
                 if ci >= len(col_widths) or not cell_text:
                     continue
@@ -430,7 +463,9 @@ def render_nutrition(
     for row_idx, item in enumerate(table_data):
         is_sub = item.get("is_sub", False)
         row_top_y = y
-        text_y = _baseline_y(y, font_size)
+        
+        row_text = "".join(str(item.get(col.key, "")) for col in layout.columns)
+        text_y = _baseline_y(y, font_size, text=row_text)
         
         # 探测当前行除去第一列（名称列）以外，是否全部为空
         row_is_empty_after_name = True
@@ -463,9 +498,11 @@ def render_nutrition(
                 else:
                     max_w = col_widths[ci] - indent - c_pad
 
+                font_to_use = _FONT_NAME_BOLD if not is_sub and getattr(layout, 'bold_main_items', False) else _FONT_NAME
+
                 _draw_compressed_text(
                     c, display_val, col_x_offsets[ci] + indent, text_y,
-                    _FONT_NAME, font_size, max_w,
+                    font_to_use, font_size, max_w,
                     align=col.align, tz_override=global_tz,
                 )
             else:
@@ -486,7 +523,10 @@ def render_nutrition(
     table_bottom = y
 
     # ── 外框 ──
-    c.setLineWidth(layout.border_line_width)
+    outer_lw = getattr(layout, 'outer_border_line_width', None)
+    if outer_lw is None:
+        outer_lw = layout.border_line_width
+    c.setLineWidth(outer_lw)
     c.line(x, table_top, x, table_bottom)             
     c.line(x + width, table_top, x + width, table_bottom)  
     c.line(x, table_top, x + width, table_top)        

@@ -40,10 +40,13 @@ class NutritionLayout:
     data_row_line_width: float = 0.3         
     header_line_width: float = 0.5           
     border_line_width: float = 0.5           
+    outer_border_line_width: Optional[float] = None
     sub_indent: float = 10.0                 
     draw_col_sep: bool = True                # 全局开关：是否绘制列与列之间的垂直分割线
     col_sep_in_data: bool = True             # False = 竖线仅在列头行，不延伸进数据行
-    col_padding: float = 4.0                 # 数据列内容与左右外框/竖线的距离
+    col_padding: float = 1.5                 # 数据列内容与左右外框/竖线的距离
+    line_height_ratio: float = 1.15          # 行高 = 字号 x 此值 (越大行间距越宽)
+    bold_main_items: bool = False            # True = 非 sub 项的数据行全部加粗
     name_mapping: Optional[Dict[str, str]] = None  
 
     @property
@@ -76,10 +79,11 @@ NUT_LAYOUT_REGISTRY: Dict[str, NutritionLayout] = {
                 independent_tz=True,                       # 独立压缩占比铺满外框
             ),
             NutHeaderRow(
-                cells=["Servings per package: {servings}"],
+                cells=["Servings per package: {servings_per_package}"],
                 span_full=True, template=True,
                 align="left",
                 draw_line_below=False,
+                height_ratio=0.85,
             ),
             NutHeaderRow(
                 cells=["Serving size: {serving_size}"],
@@ -87,6 +91,7 @@ NUT_LAYOUT_REGISTRY: Dict[str, NutritionLayout] = {
                 align="left",
                 draw_line_below=True,
                 line_width_below=0.5,
+                height_ratio=0.85,
             ),
             NutHeaderRow(
                 cells=["", "Average Quantity\nPer serving", "Average Quantity\nPer 100g"],
@@ -130,16 +135,20 @@ NUT_LAYOUT_REGISTRY: Dict[str, NutritionLayout] = {
         sub_indent=10.0,
     ),
 
-    # ── 美国 ──
-    "US": NutritionLayout(
-        name="US Standard 3-Column",
+    # ── 非洲 (南非) ──
+    "ZA": NutritionLayout(
+        name="ZA Standard 3-Column",
         columns=[NutColumn("name", 0.48, "left"), NutColumn("per_serving", 0.30, "center"), NutColumn("nrv", 0.22, "center")],
         header_rows=[
-            NutHeaderRow(cells=["Nutrition Facts"], bold=True, span_full=True),
-            NutHeaderRow(cells=["Items", "Per serving\n({serving_size})"], template=True, multi_line=True),
+            NutHeaderRow(cells=["Nutrition Information"], bold=True, span_full=True, height_ratio=1.4, font_ratio=1.4, independent_tz=True),
+            NutHeaderRow(cells=["", "Per serving\n({serving_size})", "NRV%"], template=True, multi_line=True),
         ],
         draw_data_row_lines=True,
         sub_indent=10.0,
+        bold_main_items=True,
+        data_row_line_width=0.5,
+        border_line_width=0.5,
+        outer_border_line_width=0.65,
     ),
 
     # ── 欧盟 (多语言) ──
@@ -151,6 +160,8 @@ NUT_LAYOUT_REGISTRY: Dict[str, NutritionLayout] = {
             NutHeaderRow(cells=["Nutrition facts per / Voedingswaarde per / Valor nutricional por / Nährwerte pro / Valeur nutritive pour 100mL"], span_full=True),
         ],
         draw_data_row_lines=True,
+        col_padding=1.5,
+        line_height_ratio=1.1,
         sub_indent=10.0,
         name_mapping={
             'energy': 'Energy / Energie / Valor energético / Energie / Énergie', 

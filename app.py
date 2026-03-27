@@ -282,12 +282,46 @@ PLM_EXAMPLE_5 = {
     ]},
 }
 
+# 场景6：澳大利亚横版标签（海天上等蚝油，双列营养表 + 长配料表）
+PLM_EXAMPLE_6 = {
+    "product_name_en": "Haday Superior Oyster Sauce (Classic Version)",
+    "product_name_cn": "海天上等蚝油(经典版)",
+    "net_weight": "NET: 590 g",
+    "drained_weight": "",
+    "ingredients": "Water, Oyster Extractives (10%)(Oyster (Mollusc), Water, Salt), Sugar, Salt, Flavour Enhancer (Monosodium Glutamate (621)), Thickener (Hydroxypropyl Distarch Phosphate (1442)), Fructose-Glucose Syrup, Colour (Caramel I (150a)), Wheat Flour, Flavour Enhancer (Disodium 5'-Ribonucleotide (635)), Thickener (Xanthan Gum (415)), Acidity Regulator (Citric Acid (330)), Preservative (Potassium Sorbate (202)).",
+    "allergens": "Wheat, Gluten, Mollusc",
+    "storage": "Please keep it in a cool and dry place. Tightly close lid after use and keep refrigerated. Serve with stir-fry cooking.",
+    "production_date": "See Packing",
+    "best_before": "See Packing",
+    "origin": "China",
+    "manufacturer": "Foshan Haitian (Gaoming) Flavouring & Food Co., Ltd.",
+    "manufacturer_address": "Eastern Park (No.889 Gaoming Road), Cangjiang Industrial Park, Gaoming District, Foshan, Guangdong, China",
+    "importer_info": "MING FA TRADING CO PTY LTD\nSYDNEY: 8 Ormsby Place, Wetherill Park, NSW 2164\nMELBOURNE: 1 Kingston Park Court, Knoxfield, VIC 3180\nBRISBANE: 60 Computer Road, Yatala, QLD 4207\nhotline: 03 97610778  email: support@mingfa.com.au",
+    "brand_logo": "",
+    "is_halal": False,
+    "target_country": "AU",
+    "nutrition": {
+        "serving_size": "15 g",
+        "servings_per_package": "about 39",
+        "table_data": [
+            {"name": "Energy",              "per_serving": "47 kJ",         "per_100g": "311 kJ"},
+            {"name": "Protein",             "per_serving": "Less than 1 g", "per_100g": "3.1 g"},
+            {"name": "Fat, total",          "per_serving": "Less than 1 g", "per_100g": "Less than 1 g"},
+            {"name": "-saturated",          "per_serving": "Less than 1 g", "per_100g": "Less than 1 g", "is_sub": True},
+            {"name": "Carbohydrate",        "per_serving": "2.3 g",         "per_100g": "15.3 g"},
+            {"name": "-sugars",             "per_serving": "1.5 g",         "per_100g": "10.0 g", "is_sub": True},
+            {"name": "Sodium",              "per_serving": "637 mg",        "per_100g": "4240 mg"},
+        ]
+    }
+}
+
 PLM_EXAMPLES = {
     "场景1 - 生抽酱油 (Wonderful Foods 进口)": PLM_EXAMPLE_1,
     "场景2 - 老抽酱油 (广州宝来星 进口)":     PLM_EXAMPLE_2,
     "场景3 - 草菇老抽 (京东国际竖版 荷兰)":   PLM_EXAMPLE_3,
     "场景4 - 特级蚝油 (含过敏原与极长配料 德国)": PLM_EXAMPLE_4,
     "场景5 - 纯正芝麻油 (短配料长提示语 法国)": PLM_EXAMPLE_5,
+    "场景6 - 上等蚝油 (海天经典版 澳大利亚)": PLM_EXAMPLE_6,
 }
 
 # --------------------------------------------------

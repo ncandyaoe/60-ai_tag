@@ -29,12 +29,12 @@ COUNTRY_REGISTRY = {
         "show_magnifier": False,
         "is_multilingual": False,
     },
-    "US": {
-        "name": "美国",
+    "ZA": {
+        "name": "非洲 (南非标准)",
         "lang": "en",
         "min_font_height_mm": 1.6,
-        "nutrition_title": "Nutrition Facts",
-        "nutrition_header": ["", "Amount Per Serving", "% Daily Value"],
+        "nutrition_title": "Nutrition Information",
+        "nutrition_header": ["", "Per serving", "NRV%"],
         "icons": [],
         "eco_icons": [],
         "show_magnifier": False,

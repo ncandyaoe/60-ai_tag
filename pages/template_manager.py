@@ -236,18 +236,3 @@ else:
                     delete_template(tmpl["id"])
                     st.success(f"已删除模板「{tmpl['name']}」")
                     st.rerun()
-                            <html><head><meta charset="UTF-8"><style>
-                            body {{ margin:0; padding:0; background:#4a4a4a; display:flex; justify-content:center; padding: 16px; }}
-                            img {{ max-width:100%; box-shadow:0 4px 16px rgba(0,0,0,0.5); }}
-                            </style></head><body>
-                            <img src="data:image/png;base64,{png_b64}" alt="Preview" />
-                            </body></html>"""
-                            st.components.v1.html(preview_html, height=500, scrolling=True)
-                        except Exception as e:
-                            st.error(f"预览失败: {e}")
-
-                # 删除按钮
-                if st.button("🗑 删除", key=f"delete_{tmpl['id']}", type="secondary"):
-                    delete_template(tmpl["id"])
-                    st.success(f"已删除模板「{tmpl['name']}」")
-                    st.rerun()
