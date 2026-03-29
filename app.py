@@ -367,22 +367,55 @@ PLM_EXAMPLE_8 = {
     "target_country": "CA",
     "nutrition": {
         "serving_size": "1 tbsp (18 g)",
+        "serving_size_fr": "1 cuillère à soupe (18 g)",
         "servings_per_package": "",
         "table_data": [
-            {"name": "Fat / Lipides 1 g", "nrv": "1 %", "heavy": True, "hide_line_below": True, "height_ratio": 0.8},
-            {"name": "Saturated / saturées 0 g", "nrv": "0 %", "is_sub": True, "hide_line_below": True, "height_ratio": 0.8},
-            {"name": "+ Trans / trans 0 g", "nrv": "", "is_sub": True, "padded_line_below": True, "height_ratio": 0.8},
-            {"name": "Carbohydrate / Glucides 3 g", "nrv": "", "hide_line_below": True, "height_ratio": 0.8},
-            {"name": "Fibre / Fibres 1 g", "nrv": "4 %", "is_sub": True, "hide_line_below": True, "height_ratio": 0.8},
-            {"name": "Sugars / Sucres 2 g", "nrv": "2 %", "is_sub": True, "padded_line_below": True, "height_ratio": 0.8},
-            {"name": "Protein / Protéines 2 g", "nrv": "", "heavy": True, "padded_line_below": True},
-            {"name": "Cholesterol / Cholestérol 0 mg", "nrv": "", "heavy": True, "padded_line_below": True},
-            {"name": "Sodium 890 mg", "nrv": "39 %", "heavy": True},
-            {"name": "Potassium 100 mg", "nrv": "3 %"},
-            {"name": "Calcium 10 mg", "nrv": "1 %"},
-            {"name": "Iron / Fer 0.2 mg", "nrv": "1 %", "thick_line_below": True},
-            {"name": "* 5% or less is a little, 15% or more is a lot", "bold": False, "hide_line_below": True, "height_ratio": 0.8, "margin_top": 2.0},
-            {"name": "* 5% ou moins c'est peu, 15% ou plus c'est beaucoup", "bold": False, "hide_line_below": True, "height_ratio": 0.8}
+            {"name": "Fat / Lipides", "value": "1 g", "nrv": "1 %", "heavy": True, "hide_line_below": True, "height_ratio": 0.8},
+            {"name": "Saturated / saturées", "value": "0 g", "nrv": "0 %", "is_sub": True, "hide_line_below": True, "height_ratio": 0.8},
+            {"name": "+ Trans / trans", "value": "0 g", "nrv": "", "is_sub": True, "padded_line_below": True, "height_ratio": 0.8},
+            {"name": "Carbohydrate / Glucides", "value": "3 g", "nrv": "", "hide_line_below": True, "height_ratio": 0.8},
+            {"name": "Fibre / Fibres", "value": "1 g", "nrv": "4 %", "is_sub": True, "hide_line_below": True, "height_ratio": 0.8},
+            {"name": "Sugars / Sucres", "value": "2 g", "nrv": "2 %", "is_sub": True, "padded_line_below": True, "height_ratio": 0.8},
+            {"name": "Protein / Protéines", "value": "2 g", "nrv": "", "heavy": True, "padded_line_below": True},
+            {"name": "Cholesterol / Cholestérol", "value": "0 mg", "nrv": "", "heavy": True, "padded_line_below": True},
+            {"name": "Sodium", "value": "890 mg", "nrv": "39 %", "heavy": True, "thick_line_below": True},
+            {"name": "Potassium", "value": "100 mg", "nrv": "3 %"},
+            {"name": "Calcium", "value": "10 mg", "nrv": "1 %"},
+            {"name": "Iron / Fer", "value": "0.2 mg", "nrv": "1 %", "thick_line_below": True},
+            {"name": "* 5% or less is a little, 15% or more is a lot", "bold": False, "hide_line_below": True, "height_ratio": 0.72, "margin_top": 2.0},
+            {"name": "* 5% ou moins c'est peu, 15% ou plus c'est beaucoup", "bold": False, "hide_line_below": True, "height_ratio": 0.72}
+        ]
+    }
+}
+
+PLM_EXAMPLE_11 = {
+    "product_name_en": "DELICIOUS LIGHT SOY SAUCE",
+    "product_name_cn": "鲜味生抽",
+    "net_weight": "500 mL",
+    "drained_weight": "",
+    "ingredients": "Water, Soybeans, Salt, Wheat, Monosodium glutamate, Wheat flour, Glucose-fructose, Caramel, Rice, Disodium 5'-inosinate, Disodium 5'-ribonucleotide, Potassium sorbate, Sucralose.\nContains: Soybeans, Wheat.",
+    "allergens": "Eau, Soja, Sel, Blé, Glutamate monosodique, Farine de blé, Fructose-glucose, Couleur caramel, Riz, 5'-inosinate disodique, 5'-ribonucléotide disodique, Sorbate de potassium, Sucralose.\nContient: Soja, Blé.",
+    "storage": "Best before: see the package/Meilleur avant: voir emballage\nPlease keep it in cool and dry place. Tightly close lid after use and keep refrigerated.\nVeuillez le conserver dans un endroit frais et sec. Bien fermer le couvercle après utilisation et conserver au réfrigérateur.",
+    "production_date": "",
+    "best_before": "see the package/voir emballage",
+    "origin": "Product of China / Produit de Chine",
+    "manufacturer": "Foshan Haitian (Gaoming) Flavouring & Food Co., Ltd.",
+    "manufacturer_address": "Eastern Park(No.889 Gaoming Road), Cangjiang Industrial Park, Gaoming District, Foshan, Guangdong, China",
+    "importer_info": "Imported by / Importé par:\nFive Continents International LTD\nAddress/Adresse:\n1880 Birchmount Road,Scarborough,\nON M1P 2J7",
+    "brand_logo": "",
+    "is_halal": False,
+    "target_country": "CA_SOY",
+    "nutrition": {
+        "serving_size": "1 tbsp (15 mL)",
+        "serving_size_fr": "1 cuillère à soupe (15 mL)",
+        "servings_per_package": "",
+        "table_data": [
+            {"name": "Fat / Lipides", "value": "0 g", "nrv": "0 %", "heavy": True},
+            {"name": "Carbohydrate / Glucides", "value": "1 g", "nrv": "", "heavy": True},
+            {"name": "Protein / Protéines", "value": "1 g", "nrv": "", "heavy": True},
+            {"name": "Sodium", "value": "1080 mg", "nrv": "47 %", "heavy": True},
+            {"name": "Potassium", "value": "40 mg", "nrv": "1 %"},
+            {"name": "Iron / Fer", "value": "0.1 mg", "nrv": "1 %", "thick_line_below": True}
         ]
     }
 }
@@ -396,6 +429,7 @@ PLM_EXAMPLES = {
     "场景6 - 上等蚝油 (海天经典版 澳大利亚)": PLM_EXAMPLE_6,
     "场景7 - 香菇素蚝油 (全网格表头 马来西亚)": PLM_EXAMPLE_7,
     "场景8 - 鲜味生抽 (特殊分组表头 加拿大)": PLM_EXAMPLE_8,
+    "场景9 - 简版表 (自定义行及粗线 加拿大)": PLM_EXAMPLE_11,
 }
 
 # --------------------------------------------------

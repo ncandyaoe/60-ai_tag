@@ -202,6 +202,39 @@ def _format_template_text(text: str, data: dict) -> str:
     return text
 
 
+def _wrap_text(text: str, font_name: str, font_size: float, max_w: float, tz: float = 100.0) -> list:
+    """将长文本按可用宽度自动断词折行，返回行列表。
+    
+    Args:
+        text:      长文本
+        font_name: 字体名
+        font_size: 字号
+        max_w:     可用宽度（pt）
+        tz:        横向压缩百分比（100=无压缩）
+    Returns:
+        list[str]: 折行后的文本行列表
+    """
+    if not text or max_w <= 0:
+        return [text] if text else [""]
+    words = text.split()
+    if not words:
+        return [text]
+    lines = []
+    current = ""
+    for w in words:
+        test = f"{current} {w}".strip() if current else w
+        tw = pdfmetrics.stringWidth(test, font_name, font_size) * tz / 100.0
+        if tw <= max_w:
+            current = test
+        else:
+            if current:
+                lines.append(current)
+            current = w
+    if current:
+        lines.append(current)
+    return lines if lines else [text]
+
+
 def render_nutrition(
     canvas,
     region,
@@ -211,7 +244,8 @@ def render_nutrition(
     country_code: str = "DEFAULT",
 ) -> float:
     from reportlab.pdfbase import pdfmetrics
-    from nut_layouts import get_nut_layout
+    from nut_layouts import get_nut_layout, load_excel_config, get_data_row_template
+    load_excel_config()  # 每次渲染前热重载 Excel（如果有）
     layout = get_nut_layout(country_code, override_type=nut_table_type or None)
 
     c = canvas
@@ -219,6 +253,28 @@ def render_nutrition(
     width = region.width
     nutrition = data.get("nutrition") or {}
     table_data = nutrition.get("table_data") or []
+
+    # ── 从 Excel 数据行模板合并显示属性 ──
+    tmpl = get_data_row_template(country_code)
+    if tmpl:
+        # 按 name 建立 PLM 值索引
+        plm_by_name = {}
+        for row in table_data:
+            name = row.get("name", "")
+            plm_by_name[name] = row
+        
+        # 以 Excel 模板为骨架，PLM 值填充
+        merged = []
+        for t_row in tmpl:
+            name = t_row.get("name", "")
+            merged_row = dict(t_row)  # 模板的显示属性
+            if name in plm_by_name:
+                # PLM 的含量值（value, nrv, per_serving 等）补入
+                for k, v in plm_by_name[name].items():
+                    if k not in merged_row or k in ("value", "nrv", "per_serving", "per_100g"):
+                        merged_row[k] = v
+            merged.append(merged_row)
+        table_data = merged
 
     # ── 计算列绝对宽度和 X 偏移 ──
     col_widths = [col.width_ratio * width for col in layout.columns]
@@ -230,24 +286,38 @@ def render_nutrition(
 
     # ── PASS A: 先找实际字号（二分法）──
     n_data_rows = len(table_data)
-    MIN_FS = 4.0
+
+    # 最低字号：为了保证在极小物理框内能完整把表格画完（不黏连、不切断），移除硬性下限。
+    # 合规性拦截已在 app.py 的外层调用产生警告，此处只负责如实自适应排版。
+    MIN_FS = 1.0
     MAX_FS = 16.0
 
     pad_ratio = 0.0
     line_ratio = getattr(layout, 'line_height_ratio', 1.15)
 
     def _total_height(fs):
+        ref_fs = getattr(layout, 'reference_font_size', 0.0)
+        sc = fs / ref_fs if ref_fs and ref_fs > 0 else 1.0
         pad_y = fs * pad_ratio
         lh = fs * line_ratio
         h = pad_y  # 顶边留白
         for hdr in layout.header_rows:
+            h += getattr(hdr, "margin_top", 0.0) * sc  # 标题行上间距（可负）
             cell_rows = 2 if hdr.multi_line else 1
             h += lh * cell_rows * hdr.height_ratio
             if hdr.draw_line_below:
                 h += pad_y * 2  # 下边留白 + 下一行的上沿留白
+                h += getattr(hdr, 'margin_below', 0.0) * sc  # 底线后额外间距
         
         for item in table_data:
+            h += item.get("margin_top", 0.0) * sc  # 数据行上间距
             h += lh * item.get("height_ratio", 1.0)
+        # 底部行：预留空间（用 footer 字号对应的 leading × height_ratio）
+        # 与渲染时按 height_ratio 比例分配的逻辑保持一致
+        if layout.footer_rows:
+            est_footer_leading = fs * 0.85 * 1.15  # footer_fs * leading_ratio
+            for ftr in layout.footer_rows:
+                h += est_footer_leading * ftr.height_ratio
         h += pad_y  # 底边留白
         return h
 
@@ -263,15 +333,100 @@ def render_nutrition(
     lh = font_size * line_ratio
     row_h = lh  # 为了兼容下方的 row_h 调用
 
+    # ── 自适应缩放：所有绝对 pt 值按 actual_fs / reference_fs 缩放 ──
+    ref_fs = getattr(layout, 'reference_font_size', 0.0)
+    scale = font_size / ref_fs if ref_fs and ref_fs > 0 else 1.0
+    m_scale = scale  # 专门用于垂直 margin 的缩放比例
+    title_scale = 1.0 # 专门用于大字号标题的阻缩放比例
+    struct_scale = 1.0 # 结构性（负数）margin 的约束缩放比例
+
+    # ── 优雅降级：当字号已到法规下限但仍溢出时，压缩 margin 和 行高 ──
+    if _total_height(font_size) > region.height:
+        # 计算不含可压缩 margin 的基础高度
+        base_h = pad_y  # 顶边
+        for hdr in layout.header_rows:
+            mt = getattr(hdr, "margin_top", 0.0)
+            if mt < 0:
+                base_h += mt * scale
+            cell_rows = 2 if hdr.multi_line else 1
+            base_h += lh * cell_rows * hdr.height_ratio
+            if hdr.draw_line_below:
+                base_h += pad_y * 2
+                mb = getattr(hdr, 'margin_below', 0.0)
+                if mb < 0:
+                    base_h += mb * scale
+        for item in table_data:
+            mt = item.get("margin_top", 0.0)
+            if mt < 0:
+                base_h += mt * scale
+            base_h += lh * item.get("height_ratio", 1.0)
+        # 底部行：与 _total_height 保持一致
+        if layout.footer_rows:
+            est_footer_leading = font_size * 0.85 * 1.15
+            for ftr in layout.footer_rows:
+                base_h += est_footer_leading * ftr.height_ratio
+        base_h += pad_y  # 底边
+
+        if base_h > region.height:
+            # 死守字体底线保护：寻找全表的“压缩极限”，绝对不让任何行的局部高度(local_row_h)跌穿字体自身的物理高度限制，造成上下横线粘黏
+            min_allowed_lh_scale = 0.0
+            
+            for hdr in layout.header_rows:
+                hr = getattr(hdr, "height_ratio", 1.0)
+                if hdr.multi_line:
+                    # 双行文本折叠极限：cap(0.73) + gap(0.95) + desc(0.22) = 1.9。给予 1.95 的绝对安全比例
+                    req_scale = (font_size * 1.95) / (lh * hr * 2) if hr > 0 else 0
+                else:
+                    # 单行文本极限：字高 0.95。给予 1.05 的安全比
+                    req_scale = (font_size * 1.05) / (lh * hr) if hr > 0 else 0
+                if req_scale > min_allowed_lh_scale:
+                    min_allowed_lh_scale = req_scale
+                    
+            for item in table_data:
+                hr = item.get("height_ratio", 1.0)
+                req_scale = (font_size * 1.05) / (lh * hr) if hr > 0 else 0
+                if req_scale > min_allowed_lh_scale:
+                    min_allowed_lh_scale = req_scale
+            # 底部行不参与 lh_scale 约束
+
+            # 只能在不重叠的安全范围内极度压缩行高 (lh)
+            lh_scale = max(min_allowed_lh_scale, region.height / base_h)
+            
+            lh = lh * lh_scale
+            row_h = lh
+            m_scale = 0.0 # 可压缩 margin 彻底归零
+            title_scale = lh_scale # 让超出常规字号的标题字号也跟着行高同比例压缩
+            struct_scale = lh_scale # 负数 margin 等比压缩退让
+            pad_y = pad_y * lh_scale
+        else:
+            # 仅仅压缩 margin 即可
+            margin_total = _total_height(font_size) - base_h
+            if margin_total > 0:
+                avail_for_margin = region.height - base_h
+                margin_scale = avail_for_margin / margin_total
+                m_scale = scale * margin_scale
+
+    # 缩放布局级别的绝对 pt 值
+    s_col_padding = layout.col_padding * scale
+    s_sub_indent = layout.sub_indent * scale
+    s_data_row_line_padding = layout.data_row_line_padding * scale
+    s_data_row_line_width = layout.data_row_line_width * scale
+    s_header_line_width = layout.header_line_width * scale
+    s_border_line_width = layout.border_line_width * scale
+    s_outer_border_lw = (layout.outer_border_line_width or layout.border_line_width) * scale
+    s_thick_line_width = layout.thick_line_width * scale
+
     # ── PASS B: 用实际 font_size 计算横向压缩比 (min_tz) ──
     min_tz = 1.0
 
-    # 提取列边距 padding (缺省2.0)
-    c_pad = getattr(layout, 'col_padding', 2.0)
+    # 提取列边距 padding (缩放后)
+    c_pad = s_col_padding
 
     for hdr in layout.header_rows:
         if getattr(hdr, 'independent_tz', False):
             continue  # 独立压缩行不参与全局 min_tz 计算
+        if getattr(hdr, 'col_width_ratios', None):
+            continue  # 自定义列宽行独立计算 Tz，不拖累数据行
         base_fs = font_size * getattr(hdr, "font_ratio", 1.0)
         font = getattr(hdr, "font_override", None) or (_FONT_NAME_BOLD if hdr.bold else _FONT_NAME)
         if hdr.span_full:
@@ -321,7 +476,7 @@ def render_nutrition(
                 continue
             font = getattr(col, "font_override", None) or _FONT_NAME
             if col.key == "name":
-                indent = layout.sub_indent if is_sub else c_pad
+                indent = s_sub_indent if is_sub else c_pad
                 display_val = layout.name_mapping.get(val.strip().lower(), val.strip()) if layout.name_mapping else val
                 req_w = pdfmetrics.stringWidth(display_val, font, font_size)
                 avail_w = col_widths[ci] - indent - c_pad
@@ -364,9 +519,13 @@ def render_nutrition(
 
     # ── 标题区渲染 ──
     for hdr in layout.header_rows:
-        y -= getattr(hdr, "margin_top", 0.0)
+        mt = getattr(hdr, "margin_top", 0.0)
+        actual_mt = mt * scale * struct_scale if mt < 0 else mt * m_scale
+        y -= actual_mt
         row_top_y = y
-        base_fs = font_size * getattr(hdr, "font_ratio", 1.0)
+        raw_base_fs = font_size * getattr(hdr, "font_ratio", 1.0)
+        # 用 title_scale 对大标题施加同频阻尼，但不侵犯国家最低限高 font_size
+        base_fs = max(font_size, raw_base_fs * title_scale)
         local_lh = lh * getattr(hdr, "height_ratio", 1.0)
         cell_h = local_lh * 2 if hdr.multi_line else local_lh
 
@@ -390,6 +549,26 @@ def render_nutrition(
             font_over = getattr(hdr, "font_override", None)
             font_ratios = getattr(hdr, "font_ratios", None)
 
+            # 自定义列宽行：独立计算本行 Tz，不使用 global_tz
+            if getattr(hdr, 'col_width_ratios', None):
+                row_min_tz = 1.0
+                for ci2, ct2 in enumerate(hdr.cells):
+                    if ci2 >= len(local_cw) or not ct2:
+                        continue
+                    if hdr.template:
+                        ct2 = _format_template_text(ct2, nutrition)
+                    f_over2 = font_over[ci2] if isinstance(font_over, list) and ci2 < len(font_over) and font_over[ci2] else (_FONT_NAME_BOLD if hdr.bold else _FONT_NAME)
+                    fr2 = (font_size * font_ratios[ci2]) if font_ratios and ci2 < len(font_ratios) else base_fs
+                    for ln2 in ct2.split("\n"):
+                        rw2 = pdfmetrics.stringWidth(ln2, f_over2, fr2)
+                        if rw2 > 0:
+                            ratio2 = (local_cw[ci2] - c_pad * 2) / rw2
+                            if ratio2 < row_min_tz:
+                                row_min_tz = ratio2
+                local_tz = min(100.0, row_min_tz * 100)
+            else:
+                local_tz = global_tz
+
             valign = getattr(hdr, "valign", "center")
             for ci, cell_text in enumerate(hdr.cells):
                 if ci >= len(local_cw) or not cell_text:
@@ -402,34 +581,47 @@ def render_nutrition(
                 else:
                     font = font_over or (_FONT_NAME_BOLD if hdr.bold else _FONT_NAME)
                 
-                local_fs = (font_size * font_ratios[ci]) if font_ratios and ci < len(font_ratios) else base_fs
+                if font_ratios and ci < len(font_ratios):
+                    raw_local_fs = font_size * font_ratios[ci]
+                    local_fs = max(font_size, raw_local_fs * title_scale)
+                else:
+                    local_fs = base_fs
                 
                 if valign == "ca_header":
-                    margin_y = 1.5
+                    margin_y = 1.5 * scale
                     if len(lines) == 1:
-                        # 左侧 Calories 紧贴底端粗线对齐（消除空隙），给横线上半厚度预留 1.5 空间
-                        text_y = (y - cell_h) + 1.5
+                        # 左侧 Calories 紧贴底端粗线对齐（消除空隙），给横线上半厚度预留 margin_y 空间
+                        text_y = (y - cell_h) + margin_y
                         _draw_compressed_text(
                             c, lines[0], local_cx[ci] + c_pad, text_y,
                             font, local_fs, local_cw[ci] - c_pad * 2, align=layout.columns[ci].align,
-                            tz_override=global_tz,
+                            tz_override=local_tz,
                         )
                     else:
                         # 右侧双行平铺上下边界锁定对齐
                         cap_h = local_fs * _CAP_H_RATIO
-                        line1_y = y - margin_y - cap_h
                         desc_h = local_fs * 0.22
-                        line2_y = (y - cell_h) + margin_y + desc_h
+                        tight_gap = local_fs * 0.95
+                        
+                        # 防挤压保护：如果上下留白导致两行重叠，则降级为紧凑居中排列
+                        if (cell_h - margin_y * 2) < (cap_h + tight_gap + desc_h):
+                            block_h = cap_h + tight_gap + desc_h
+                            margin_y_adj = (cell_h - block_h) / 2
+                            line1_y = y - margin_y_adj - cap_h
+                            line2_y = line1_y - tight_gap
+                        else:
+                            line1_y = y - margin_y - cap_h
+                            line2_y = (y - cell_h) + margin_y + desc_h
                         
                         _draw_compressed_text(
                             c, lines[0], local_cx[ci] + c_pad, line1_y,
                             font, local_fs, local_cw[ci] - c_pad * 2, align=layout.columns[ci].align,
-                            tz_override=global_tz,
+                            tz_override=local_tz,
                         )
                         _draw_compressed_text(
                             c, lines[1], local_cx[ci] + c_pad, line2_y,
                             font, local_fs, local_cw[ci] - c_pad * 2, align=layout.columns[ci].align,
-                            tz_override=global_tz,
+                            tz_override=local_tz,
                         )
                 else:
                     if len(lines) == 1:
@@ -437,7 +629,7 @@ def render_nutrition(
                         _draw_compressed_text(
                             c, lines[0], local_cx[ci] + c_pad, text_y,
                             font, local_fs, local_cw[ci] - c_pad * 2, align=layout.columns[ci].align,
-                            tz_override=global_tz,
+                            tz_override=local_tz,
                         )
                     else:
                         cap_h = local_fs * _CAP_H_RATIO
@@ -451,12 +643,12 @@ def render_nutrition(
                         _draw_compressed_text(
                             c, lines[0], local_cx[ci] + c_pad, line1_y,
                             font, local_fs, local_cw[ci] - c_pad * 2, align=layout.columns[ci].align,
-                            tz_override=global_tz,
+                            tz_override=local_tz,
                         )
                         _draw_compressed_text(
                             c, lines[1], local_cx[ci] + c_pad, line2_y,
                             font, local_fs, local_cw[ci] - c_pad * 2, align=layout.columns[ci].align,
-                            tz_override=global_tz,
+                            tz_override=local_tz,
                         )
             y -= cell_h
         elif hdr.span_full:
@@ -512,7 +704,11 @@ def render_nutrition(
                     font = font_over[ci] if ci < len(font_over) and font_over[ci] else (_FONT_NAME_BOLD if hdr.bold else _FONT_NAME)
                 else:
                     font = font_over or (_FONT_NAME_BOLD if hdr.bold else _FONT_NAME)
-                local_fs = (font_size * font_ratios[ci]) if font_ratios and ci < len(font_ratios) else base_fs
+                if font_ratios and ci < len(font_ratios):
+                    raw_local_fs = font_size * font_ratios[ci]
+                    local_fs = max(font_size, raw_local_fs * title_scale)
+                else:
+                    local_fs = base_fs
                     
                 _draw_compressed_text(
                     c, cell_text, local_cx[ci] + c_pad, text_y,
@@ -527,15 +723,16 @@ def render_nutrition(
             y -= pad_y
             
             l_pad = getattr(hdr, 'line_left_padding', 0.0)
-            if not l_pad: l_pad = getattr(hdr, 'line_padding', 0.0)
+            # 未显式设置时，自动继承布局全局值
+            if not l_pad: l_pad = getattr(hdr, 'line_padding', 0.0) or s_data_row_line_padding
             
             r_pad = getattr(hdr, 'line_right_padding', 0.0)
-            if not r_pad: r_pad = getattr(hdr, 'line_padding', 0.0)
+            if not r_pad: r_pad = getattr(hdr, 'line_padding', 0.0) or s_data_row_line_padding
                 
-            lw = getattr(hdr, 'line_width_below', 0.0) or layout.header_line_width
+            lw = getattr(hdr, 'line_width_below', 0.0) or s_header_line_width
             if lw < 0:
-                lw = layout.border_line_width * abs(lw)
-            c.setLineWidth(lw)
+                lw = s_border_line_width * abs(lw)
+            c.setLineWidth(lw * scale if lw == s_header_line_width else lw)
             
             span_idx = getattr(hdr, 'line_span_col', None)
             
@@ -547,14 +744,57 @@ def render_nutrition(
                     local_cx.append(curr_x)
                     curr_x += cw
 
-                span_end_x = local_cx[span_idx] + local_cw[span_idx]
-                c.line(x + l_pad, y, span_end_x - r_pad, y)
+                # 计算 span 列文字的实际渲染宽度，横线只画到文字末端
+                span_text = ""
+                if span_idx < len(hdr.cells):
+                    span_text = hdr.cells[span_idx]
+                    if hdr.template:
+                        span_text = _format_template_text(span_text, nutrition)
+                
+                if span_text:
+                    font_over_line = getattr(hdr, "font_override", None)
+                    if isinstance(font_over_line, list):
+                        span_font = font_over_line[span_idx] if span_idx < len(font_over_line) and font_over_line[span_idx] else (_FONT_NAME_BOLD if hdr.bold else _FONT_NAME)
+                    else:
+                        span_font = font_over_line or (_FONT_NAME_BOLD if hdr.bold else _FONT_NAME)
+                    font_ratios_line = getattr(hdr, "font_ratios", None)
+                    span_fs = (font_size * font_ratios_line[span_idx]) if font_ratios_line and span_idx < len(font_ratios_line) else font_size * getattr(hdr, "font_ratio", 1.0)
+                    span_fs = max(font_size, span_fs * title_scale)
+                    # 使用该行的 local_tz 计算实际文字宽度
+                    if getattr(hdr, 'col_width_ratios', None):
+                        row_min_tz_l = 1.0
+                        for ci_l, ct_l in enumerate(hdr.cells):
+                            if ci_l >= len(local_cw) or not ct_l:
+                                continue
+                            if hdr.template:
+                                ct_l = _format_template_text(ct_l, nutrition)
+                            f_l = font_over_line[ci_l] if isinstance(font_over_line, list) and ci_l < len(font_over_line) and font_over_line[ci_l] else (_FONT_NAME_BOLD if hdr.bold else _FONT_NAME)
+                            fr_l = (font_size * font_ratios_line[ci_l]) if font_ratios_line and ci_l < len(font_ratios_line) else font_size * getattr(hdr, "font_ratio", 1.0)
+                            for ln_l in ct_l.split("\n"):
+                                rw_l = pdfmetrics.stringWidth(ln_l, f_l, fr_l)
+                                if rw_l > 0:
+                                    ratio_l = (local_cw[ci_l] - c_pad * 2) / rw_l
+                                    if ratio_l < row_min_tz_l:
+                                        row_min_tz_l = ratio_l
+                        line_tz = min(100.0, row_min_tz_l * 100) / 100.0
+                    else:
+                        line_tz = global_tz / 100.0
+                    
+                    raw_text_w = pdfmetrics.stringWidth(span_text, span_font, span_fs)
+                    actual_text_w = raw_text_w * line_tz
+                    span_end_x = x + l_pad + actual_text_w
+                else:
+                    span_end_x = local_cx[span_idx] + local_cw[span_idx]
+                
+                c.line(x + l_pad, y, span_end_x, y)
             else:
                 c.line(x + l_pad, y, x + width - r_pad, y)
                 
             last_header_line_y = y
             y -= pad_y
-            y -= getattr(hdr, 'margin_below', 0.0)
+            mb = getattr(hdr, 'margin_below', 0.0)
+            actual_mb = mb * scale * struct_scale if mb < 0 else mb * m_scale
+            y -= actual_mb
 
         # 竖线起始计算：优先用 col_sep_here 标记；如果没有，则送第一个非 span_full 行开始
         if getattr(hdr, 'col_sep_here', False) and col_sep_start_y is None:
@@ -566,7 +806,9 @@ def render_nutrition(
 
     # ── 数据行渲染 ──
     for row_idx, item in enumerate(table_data):
-        y -= item.get("margin_top", 0.0)
+        mt = item.get("margin_top", 0.0)
+        actual_mt = mt * scale * struct_scale if mt < 0 else mt * m_scale
+        y -= actual_mt
         is_sub = item.get("is_sub", False)
         row_top_y = y
         local_row_h = row_h * item.get("height_ratio", 1.0)
@@ -594,7 +836,7 @@ def render_nutrition(
                     break
 
             if col.key == "name":
-                indent = layout.sub_indent if is_sub else c_pad
+                indent = s_sub_indent if is_sub else c_pad
                 if layout.name_mapping and (val.startswith(" ") or val.startswith("-")):
                     indent = 8
                 display_val = layout.name_mapping.get(val.strip().lower(), val.strip()) if layout.name_mapping else val
@@ -606,6 +848,9 @@ def render_nutrition(
                     max_w = col_widths[ci] - indent - c_pad
 
                 explicit_bold = item.get("bold")
+                value_part = item.get("value", "")
+                
+                # 决定名称部分的字体
                 if item.get("heavy"):
                     font_to_use = _FONT_NAME_HEAVY
                 elif explicit_bold is not None:
@@ -613,11 +858,27 @@ def render_nutrition(
                 else:
                     font_to_use = _FONT_NAME_BOLD if not is_sub and getattr(layout, 'bold_main_items', False) else _FONT_NAME
 
-                _draw_compressed_text(
-                    c, display_val, col_x_offsets[ci] + indent, text_y,
-                    font_to_use, font_size, max_w,
-                    align=col.align, tz_override=global_tz,
-                )
+                if value_part:
+                    # 名称和数值分离渲染：name 用指定字重，value 始终 Regular
+                    display_name = display_val
+                    name_with_space = display_name + " "
+                    name_w = pdfmetrics.stringWidth(name_with_space, font_to_use, font_size) * (global_tz / 100.0)
+                    _draw_compressed_text(
+                        c, display_name, col_x_offsets[ci] + indent, text_y,
+                        font_to_use, font_size, max_w,
+                        align="left", tz_override=global_tz,
+                    )
+                    _draw_compressed_text(
+                        c, value_part, col_x_offsets[ci] + indent + name_w, text_y,
+                        _FONT_NAME, font_size, max_w - name_w,
+                        align="left", tz_override=global_tz,
+                    )
+                else:
+                    _draw_compressed_text(
+                        c, display_val, col_x_offsets[ci] + indent, text_y,
+                        font_to_use, font_size, max_w,
+                        align=col.align, tz_override=global_tz,
+                    )
             else:
                 _draw_compressed_text(
                     c, val, col_x_offsets[ci] + c_pad, text_y,
@@ -628,25 +889,97 @@ def render_nutrition(
         y -= local_row_h
         
         # ── 逐行绘制：行分割横线 ──
-        if layout.draw_data_row_lines and row_idx < len(table_data) - 1 and not item.get("hide_line_below", False):
-            lw = getattr(layout, 'thick_line_width', 1.5) if item.get("thick_line_below") else layout.data_row_line_width
+        is_last_row = row_idx == len(table_data) - 1
+        has_footers = len(layout.footer_rows) > 0
+        if layout.draw_data_row_lines and (not is_last_row or has_footers) and not item.get("hide_line_below", False):
+            lw = s_thick_line_width if item.get("thick_line_below") else s_data_row_line_width
             c.setLineWidth(lw)
             
             # 读取布局全局 padding 设定
-            line_pad = getattr(layout, 'data_row_line_padding', 0.0)
+            line_pad = s_data_row_line_padding
             # 兼容个别数据行强制开启
             if item.get("padded_line_below", False):
                 line_pad = c_pad
                 
             c.line(x + line_pad, y, x + width - line_pad, y)
 
+    # ── 底部行渲染（footer_rows — 流式引擎自适应）──
+    if layout.footer_rows:
+        # 1) 计算 footer 可用区域：数据行结束 y 到 表格底部(含底部留白)
+        footer_top_y = y
+        table_bottom_target = region.y - region.height + pad_y
+        footer_avail_h = footer_top_y - table_bottom_target
+        if footer_avail_h < font_size:
+            footer_avail_h = font_size * len(layout.footer_rows) * 1.5
+
+        # 按 height_ratio 比例分配剩余空间给每个 block
+        total_hr = sum(ftr.height_ratio for ftr in layout.footer_rows)
+        if total_hr <= 0:
+            total_hr = len(layout.footer_rows)
+
+        footer_w = width - c_pad * 2
+
+        # 2) 逐 block 独立二分搜索最大可用字号
+        #    避免 find_best_font_size 跨 region 流动导致 PASS1/PASS2 不一致
+        footer_max_fs = font_size * 0.85
+        footer_min_fs = 4.0
+        footer_fs = footer_max_fs  # 从最大开始
+
+        for ftr in layout.footer_rows:
+            block_h = footer_avail_h * (ftr.height_ratio / total_hr)
+            block = TextBlock(text=ftr.text)
+            lo_f, hi_f = footer_min_fs, footer_max_fs
+            for _ in range(15):
+                mid_f = (lo_f + hi_f) / 2
+                test_fc = FontConfig(
+                    font_name=_FONT_NAME, font_name_bold=_FONT_NAME_BOLD,
+                    font_size=mid_f, leading_ratio=1.15, h_scale=1.0,
+                )
+                test_region = FlowRect(x=0, y=block_h, width=footer_w, height=block_h)
+                test_result = layout_flow_content([block], [test_region], test_fc)
+                if test_result.overflow:
+                    hi_f = mid_f
+                else:
+                    lo_f = mid_f
+            # 该 block 的最大可用字号
+            if lo_f < footer_fs:
+                footer_fs = lo_f
+
+        footer_fc = FontConfig(
+            font_name=_FONT_NAME, font_name_bold=_FONT_NAME_BOLD,
+            font_size=footer_fs, leading_ratio=1.15, h_scale=1.0,  # 不压缩
+        )
+
+        # 3) 逐 block 渲染 + 精确分隔线
+        cur_footer_y = footer_top_y
+        for fi, ftr in enumerate(layout.footer_rows):
+            block = TextBlock(text=ftr.text)
+            block_h = footer_avail_h * (ftr.height_ratio / total_hr)
+
+            block_region = FlowRect(
+                x=x + c_pad, y=cur_footer_y,
+                width=footer_w, height=block_h,
+            )
+            block_result = layout_flow_content(
+                [block], [block_region], footer_fc, canvas=c,
+            )
+
+            cur_footer_y -= block_h
+
+            # 画分隔线
+            if ftr.draw_line_below:
+                flw = s_thick_line_width if ftr.thick_line_below else s_data_row_line_width
+                c.setLineWidth(flw)
+                c.line(x + s_data_row_line_padding, cur_footer_y,
+                       x + width - s_data_row_line_padding, cur_footer_y)
+
+        y = cur_footer_y
+
     y -= pad_y
     table_bottom = y
 
     # ── 外框 ──
-    outer_lw = getattr(layout, 'outer_border_line_width', None)
-    if outer_lw is None:
-        outer_lw = layout.border_line_width
+    outer_lw = s_outer_border_lw
     c.setLineWidth(outer_lw)
     c.line(x, table_top, x, table_bottom)             
     c.line(x + width, table_top, x + width, table_bottom)  
@@ -660,7 +993,7 @@ def render_nutrition(
         # col_sep_in_data=False: 竖线只在列头区内（即到 data_start_y）
         col_sep_end_y = table_bottom if getattr(layout, 'col_sep_in_data', True) else data_start_y
         if start_y > col_sep_end_y:
-            c.setLineWidth(layout.border_line_width)
+            c.setLineWidth(s_border_line_width)
             for cx in col_x_offsets[1:]:
                 c.line(cx, start_y, cx, col_sep_end_y)
 

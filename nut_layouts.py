@@ -5,7 +5,7 @@
 通过实现这一层，render_nutrition() 可以变成一个纯渲染循环，完全无需包含 if/elif 分支。
 """
 from typing import List, Dict, Optional, Union
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 @dataclass
 class NutColumn:
@@ -43,10 +43,24 @@ class NutHeaderRow:
 
 
 @dataclass
+class NutFooterRow:
+    """营养表底部行 — 满行布局 + 自动换行"""
+    text: str                       # 原始文本（长句），引擎自动折行
+    bold: bool = False
+    font_ratio: float = 0.8         # 脚注通常比正文小
+    height_ratio: float = 1.6       # 行高倍率（应能容纳折行后的多行文字）
+    draw_line_below: bool = True
+    thick_line_below: bool = False
+    margin_top: float = 0.0
+    align: str = "left"
+
+
+@dataclass
 class NutritionLayout:
     name: str                                
     columns: List[NutColumn]                 
     header_rows: List[NutHeaderRow]          
+    footer_rows: List[NutFooterRow] = field(default_factory=list)  # 底部行（满行 + 自动换行）
     draw_data_row_lines: bool = True         
     data_row_line_width: float = 0.3
     data_row_line_padding: float = 0.0 # 数据排版区横线的左右边距         
@@ -60,6 +74,7 @@ class NutritionLayout:
     col_padding: float = 1.5                 # 数据列内容与左右外框/竖线的距离
     line_height_ratio: float = 1.15          # 行高 = 字号 x 此值 (越大行间距越宽)
     bold_main_items: bool = False            # True = 非 sub 项的数据行全部加粗
+    reference_font_size: float = 0.0         # 参考字号(pt)。>0时所有绝对pt值按 actual_fs/ref_fs 缩放
     name_mapping: Optional[Dict[str, str]] = None  
 
     @property
@@ -250,67 +265,92 @@ NUT_LAYOUT_REGISTRY: Dict[str, NutritionLayout] = {
     ),
 
     # ── 加拿大 ──
+    # 参数来源: nut_auto_parser.py 逆向提取设计师原稿 (base_fs=6.04, base_lw=0.559)
     "CA": NutritionLayout(
         name="Canada 2-Column",
         columns=[
-            NutColumn("name",        0.75, "left"),
-            NutColumn("nrv",         0.25, "right"),
+            NutColumn("name",        0.85, "left"),
+            NutColumn("nrv",         0.15, "right"),
         ],
         data_row_line_padding=2.0,  # 内部横线统一左右退让
         header_rows=[
+            # Row 1: "Nutrition Facts"
+            # 原稿: 8.85pt Heavy
             NutHeaderRow(
-                cells=["Nutrition Facts\nValeur nutritive"], 
+                cells=["Nutrition Facts"], 
                 bold=True, span_full=True, 
                 align="left",
                 draw_line_below=False,
-                multi_line=True,
-                height_ratio=1.7, font_ratio=2.0,
+                height_ratio=1.47, font_ratio=1.47,      # 8.85 / 6.04 = 1.47
                 independent_tz=True, horizontal_padding=2.0,
                 font_override="AliPuHuiTi-Heavy"
             ),
+            # Row 2: "Valeur nutritive"
+            # 原稿: 8.85pt Heavy, gap=-1.94 (紧贴)
+            NutHeaderRow(
+                cells=["Valeur nutritive"], 
+                bold=True, span_full=True, 
+                align="left",
+                draw_line_below=False,
+                height_ratio=1.0, font_ratio=1.47,       # 同字号
+                margin_top=-2.5,                          # 紧贴上行（原稿 gap=-1.94）
+                independent_tz=True, horizontal_padding=2.0,
+                font_override="AliPuHuiTi-Heavy"
+            ),
+            # Row 3: "Per 1 tbsp (18 g)"
+            # 原稿: 4.45pt Regular, gap=-1.61 (紧贴上方大字)
             NutHeaderRow(
                 cells=["Per {serving_size}"], 
                 template=True, span_full=True, 
                 align="left",
                 draw_line_below=False,
                 independent_tz=True, horizontal_padding=2.0,
-                height_ratio=0.8,
-                margin_top=-2.9
+                font_ratio=0.74,                         # 4.45 / 6.04 = 0.74
+                height_ratio=0.74,
+                margin_top=-1.0                          # gap=-1.61，补偿大字底部空余
             ),
-            # 硬编码法语 serving_size 仅供展示用，后续可替换为占位符
+            # Row 4: 法语 serving size（模板化）
+            # 原稿: 4.45pt Regular, gap=-0.41 (紧贴)
             NutHeaderRow(
-                cells=["pour 1 cuillère à soupe (18 g)"], 
+                cells=["pour {serving_size_fr}"], 
+                template=True,
                 span_full=True, 
                 align="left",
                 draw_line_below=True,
-                line_width_below=-1.0,  # 使用标准细线（不加粗）
-                line_padding=4.0,       # 左右不顶到线，留出悬空内缩
+                line_width_below=-1.0,
                 independent_tz=True, horizontal_padding=2.0,
-                height_ratio=0.8,
+                font_ratio=0.74,                         # 4.45 / 6.04 = 0.74
+                height_ratio=0.74,
+                margin_top=-1.5                           # 紧贴 Per 行（原稿 gap=-0.41）
             ),
+            # Row 5-6: "Calories 25" | "% Daily Value *\n% valeur quotidienne *"
+            # 原稿: Calories=7.96pt Heavy(1.32x), %DV=4.67pt Bold(0.77x)
+            # Calories半宽粗线: 1.372pt = 2.45x base_lw
+            # gap to Fat: -0.28 (紧贴)
             NutHeaderRow(
                 cells=["Calories 25", "% Daily Value *\n% valeur quotidienne *"],
                 bold=True, 
                 multi_line=True,
                 draw_line_below=True,
-                line_width_below=-3.0, # 负数代表外框线宽的倍数 (此处为3倍)
-                line_left_padding=2.0, # 左侧单独向内退让 2.0，不挤满边框
+                line_width_below=-2.5,                   # 1.372/0.559 = 2.45 ≈ 2.5x
+                line_left_padding=2.0,
                 line_span_col=0,
                 valign="ca_header",
                 height_ratio=0.75,  
-                margin_below=0.0,
-                font_ratios=[1.1, 0.6],
+                margin_below=1.5,
+                font_ratios=[1.5, 0.77],                # 7.96/6.04, 4.67/6.04
                 col_width_ratios=[0.4, 0.6],
                 font_override=["AliPuHuiTi-Heavy", "AliPuHuiTi-Bold"]
             ),
         ],
         draw_data_row_lines=True,
-        draw_col_sep=False,        # CA不画竖线
-        thick_line_width=1.5,      # 加粗分割线宽度
-        bold_main_items=True,
+        draw_col_sep=False,
+        thick_line_width=1.5,
+        bold_main_items=False,      # CA 由数据行的 heavy 标记精确控制
         col_padding=2.0,
         sub_indent=10.0,
-        line_height_ratio=1.45,    # 增加行内垂直内边框留白，拉开文字与横线的呼吸空间
+        line_height_ratio=1.45,
+        reference_font_size=8.4,    # 80×70mm标签下的参考字号
     ),
 
     # ── 新西兰 ──
@@ -346,6 +386,40 @@ def get_nut_layout(country_code: str, override_type: Optional[str] = None) -> Nu
     
     # 欧洲多语言共享相同的两列式（含多语言表头）设计
     if country_code in ("NL", "FR", "DE", "ES", "EU"):
-        return NUT_LAYOUT_REGISTRY["EU_MULTI"]
+        return _active_registry.get("EU_MULTI", NUT_LAYOUT_REGISTRY["EU_MULTI"])
         
-    return NUT_LAYOUT_REGISTRY.get(country_code, NUT_LAYOUT_REGISTRY["DEFAULT"])
+    return _active_registry.get(country_code, _active_registry.get("DEFAULT", NUT_LAYOUT_REGISTRY["DEFAULT"]))
+
+
+# ══════════════════════════════════════════════════════════
+# Excel 配置优先加载（可选）
+# ══════════════════════════════════════════════════════════
+import os as _os
+
+_EXCEL_PATH = _os.path.join(_os.path.dirname(_os.path.abspath(__file__)), "nut_config.xlsx")
+_active_registry = NUT_LAYOUT_REGISTRY  # 默认使用代码内配置
+_data_templates: Dict[str, list] = {}   # 数据行模板（按国家代码索引）
+
+def load_excel_config(force=False):
+    """如果 nut_config.xlsx 存在，从中加载配置覆盖代码内默认值"""
+    global _active_registry, _data_templates
+    if _os.path.exists(_EXCEL_PATH):
+        try:
+            from nut_config_excel import load_from_excel
+            _active_registry, _data_templates = load_from_excel(_EXCEL_PATH)
+        except Exception as e:
+            print(f"⚠️ Excel 加载失败，使用代码内配置: {e}")
+            _active_registry = NUT_LAYOUT_REGISTRY
+            _data_templates = {}
+    else:
+        _active_registry = NUT_LAYOUT_REGISTRY
+        _data_templates = {}
+
+
+def get_data_row_template(country_code: str) -> Optional[list]:
+    """获取指定国家的数据行模板（从 Excel 加载），无则返回 None"""
+    return _data_templates.get(country_code)
+
+
+# 启动时自动尝试加载
+load_excel_config()

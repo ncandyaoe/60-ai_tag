@@ -51,6 +51,17 @@ COUNTRY_REGISTRY = {
         "show_magnifier": True,
         "is_multilingual": False,
     },
+    "CA_SOY": {
+        "name": "加拿大 (酱油简版)",
+        "lang": "en-fr",
+        "min_font_height_mm": 1.6,
+        "nutrition_title": "Nutrition Facts / Valeur nutritive",
+        "nutrition_header": ["", "Amount", "% Daily Value"],
+        "icons": [],
+        "eco_icons": [],
+        "show_magnifier": True,
+        "is_multilingual": False,
+    },
     "AU": {
         "name": "澳大利亚",
         "lang": "en",

@@ -1,0 +1,1 @@
+from region_renderers import _CAP_H_RATIO
